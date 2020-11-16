@@ -14,6 +14,7 @@ package org.locationtech.jts.geom;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Objects;
 
 import org.locationtech.jts.algorithm.Centroid;
 import org.locationtech.jts.algorithm.ConvexHull;
@@ -190,7 +191,7 @@ public abstract class Geometry
    * An object reference which can be used to carry ancillary data defined
    * by the client.
    */
-  private Object userData = "";
+  private Object userData = null;
 
   /**
    * Creates a new <code>Geometry</code> via the specified GeometryFactory.
@@ -1045,7 +1046,6 @@ public abstract class Geometry
    */
   public boolean equals(Geometry g) {
     if (g == null) return false;
-    if(!userData.equals(g.getUserData())) return false;
     return equalsTopo(g);
   }
 
@@ -1114,8 +1114,8 @@ public abstract class Geometry
   {
     if (! (o instanceof Geometry)) return false;
     Geometry g = (Geometry) o;
-    if(!userData.equals(g.getUserData())) return false;
-    return equalsExact(g);
+    if (Objects.equals(this.userData, g.userData)) return equalsExact(g);
+    else return false;
   }
   
   /**
