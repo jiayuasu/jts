@@ -1114,8 +1114,7 @@ public abstract class Geometry
   {
     if (! (o instanceof Geometry)) return false;
     Geometry g = (Geometry) o;
-    if (Objects.equals(this.userData, g.userData)) return equalsExact(g);
-    else return false;
+    return equalsExact(g);
   }
   
   /**
