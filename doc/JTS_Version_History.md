@@ -27,6 +27,7 @@ Distributions for older JTS versions can be obtained at the
 * Add `KMLReader` (#593)
 * Add `Densifier.setValidated` method to allow disabling expensive polygon validation (#595)
 * Add `OverlayNG` codebase (#599)
+* Add Z support in OverlayNG (#645)
 * Add system property `jts.overlay=ng` to enable use of OverlayNG in `Geometry` methods (#615)
 * Add `SnapRoundingNoder` (#599)
 * Add `SnappingNoder` (#599)
@@ -34,6 +35,12 @@ Distributions for older JTS versions can be obtained at the
 * Change `GeometryNoder` to use `SnapRoundingNoder`
 * Add `KdTree` `size` and `depth` methods (#603)
 * Improve `WKBWriter` to write empty Polygons using a more compact representation (#623)
+* Support read and initialize internal structure of `STRtree` and `Quadtree` (#634)
+* Improve `GeometryPrecisionReducer` to handle GeometryCollections (#648)
+
+### Performance Improvements
+
+* Improve performance of `UnaryUnionOp` by removing OverlayUnion optimization (#644)
 
 ### Bug Fixes
 
