@@ -312,7 +312,7 @@ public class WKBReader
     CoordinateSequence pts = readCoordinateSequence(1, ordinateFlags);
     // If X and Y are NaN create a empty point
     if (Double.isNaN(pts.getX(0)) || Double.isNaN(pts.getY(0))) {
-      return factory.createPoint(readCoordinateSequence(0, ordinateFlags));
+      return factory.createPoint(createCoordinateSequenceEmpty(ordinateFlags));
     }
     return factory.createPoint(pts);
   }
@@ -340,7 +340,7 @@ public class WKBReader
 
     // empty polygon
     if (numRings <= 0)
-      return factory.createPolygon(readCoordinateSequence(0, ordinateFlags));
+      return factory.createPolygon(createCoordinateSequenceEmpty(ordinateFlags));
     
     LinearRing shell = readLinearRing(ordinateFlags);
     for (int i = 0; i < numRings - 1; i++) {
@@ -397,6 +397,11 @@ public class WKBReader
       geoms[i] = readGeometry(SRID);
     }
     return factory.createGeometryCollection(geoms);
+  }
+
+  private CoordinateSequence createCoordinateSequenceEmpty(EnumSet<Ordinate> ordinateFlags)
+  {
+    return csFactory.create(0, inputDimension, ordinateFlags.contains(Ordinate.M) ? 1 : 0);
   }
 
   private CoordinateSequence readCoordinateSequence(int size, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException

@@ -65,6 +65,7 @@ Distributions for older JTS versions can be obtained at the
 * Fix `OverlayEdge` to include first point when adding coordinates (#1187)
 * Make `HalfEdge.compareAngularDirection` more robust (#1224)
 * Improve `Quadrant` computation robustness by using vector endpoints (#1226)
+* Fix `WKBReader` to preserve XY, XYZ, XYM and XYZM coordinate dimensions for empty points and polygons ([jiayuasu/jts#5](https://github.com/jiayuasu/jts/pull/5))
 
 ### Performance Improvements
 
