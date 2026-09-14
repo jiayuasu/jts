@@ -48,7 +48,7 @@ public class JTSVersion {
    * For snapshot releases this is "SNAPSHOT".
    * For final releases it is the empty string.
    */
-  private static final String RELEASE_INFO = "SNAPSHOT";
+  private static final String RELEASE_INFO = "datasyslab-1";
 
   /**
    * Prints the current JTS version to stdout.
