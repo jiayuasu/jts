@@ -720,7 +720,9 @@ public class WKTWriter
    * </ul>
    *
    * @param outputOrdinates  a bit-pattern of ordinates to write.
-   * @param isEmpty        whether the geometry body is EMPTY.
+   * @param isEmpty        whether the geometry body is EMPTY. Must match the body
+   *                       writer's EMPTY predicate. Collections use {@code getNumGeometries() == 0},
+   *                       because collections containing empty members are written with parentheses.
    * @param writer         the output writer to append to.
    * @throws IOException   if an error occurs while using the writer.
    */
