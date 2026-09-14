@@ -498,7 +498,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.POINT);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, point.isEmpty(), writer);
     appendSequenceText(point.getCoordinateSequence(), outputOrdinates, useFormatting,
             level, false, writer, formatter);
   }
@@ -521,7 +521,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.LINESTRING);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, lineString.isEmpty(), writer);
     appendSequenceText(lineString.getCoordinateSequence(), outputOrdinates, useFormatting,
             level, false, writer, formatter);
   }
@@ -544,7 +544,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.LINEARRING);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, linearRing.isEmpty(), writer);
     appendSequenceText(linearRing.getCoordinateSequence(), outputOrdinates, useFormatting,
             level, false, writer, formatter);
   }
@@ -567,7 +567,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.POLYGON);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, polygon.isEmpty(), writer);
     appendPolygonText(polygon, outputOrdinates, useFormatting,
             level, false, writer, formatter);
   }
@@ -590,7 +590,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.MULTIPOINT); 
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, multipoint.getNumGeometries() == 0, writer);
     appendMultiPointText(multipoint, outputOrdinates, useFormatting, level, writer, formatter);
   }
 
@@ -612,7 +612,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.MULTILINESTRING);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, multiLineString.getNumGeometries() == 0, writer);
     appendMultiLineStringText(multiLineString, outputOrdinates, useFormatting,
             level, /*false, */writer, formatter);
   }
@@ -635,7 +635,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.MULTIPOLYGON);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, multiPolygon.getNumGeometries() == 0, writer);
     appendMultiPolygonText(multiPolygon, outputOrdinates, useFormatting,
             level, writer, formatter);
   }
@@ -658,7 +658,7 @@ public class WKTWriter
   {
     writer.write(WKTConstants.GEOMETRYCOLLECTION);
     writer.write(" ");
-    appendOrdinateText(outputOrdinates, writer);
+    appendOrdinateText(outputOrdinates, geometryCollection.getNumGeometries() == 0, writer);
     appendGeometryCollectionText(geometryCollection, outputOrdinates,
             useFormatting, level, writer, formatter);
   }
@@ -720,15 +720,19 @@ public class WKTWriter
    * </ul>
    *
    * @param outputOrdinates  a bit-pattern of ordinates to write.
+   * @param isEmpty        whether the geometry body is EMPTY.
    * @param writer         the output writer to append to.
    * @throws IOException   if an error occurs while using the writer.
    */
-  private void appendOrdinateText(EnumSet<Ordinate> outputOrdinates, Writer writer) throws IOException {
+  private void appendOrdinateText(EnumSet<Ordinate> outputOrdinates, boolean isEmpty, Writer writer)
+      throws IOException {
 
     if (outputOrdinates.contains(Ordinate.Z))
       writer.append(WKTConstants.Z);
     if (outputOrdinates.contains(Ordinate.M))
       writer.append(WKTConstants.M);
+    if (isEmpty && (outputOrdinates.contains(Ordinate.Z) || outputOrdinates.contains(Ordinate.M)))
+      writer.append(' ');
   }
 
   /**
