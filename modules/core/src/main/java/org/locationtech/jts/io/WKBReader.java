@@ -312,7 +312,7 @@ public class WKBReader
     CoordinateSequence pts = readCoordinateSequence(1, ordinateFlags);
     // If X and Y are NaN create a empty point
     if (Double.isNaN(pts.getX(0)) || Double.isNaN(pts.getY(0))) {
-      return factory.createPoint();
+      return factory.createPoint(readCoordinateSequence(0, ordinateFlags));
     }
     return factory.createPoint(pts);
   }
@@ -340,7 +340,7 @@ public class WKBReader
 
     // empty polygon
     if (numRings <= 0)
-      return factory.createPolygon();
+      return factory.createPolygon(readCoordinateSequence(0, ordinateFlags));
     
     LinearRing shell = readLinearRing(ordinateFlags);
     for (int i = 0; i < numRings - 1; i++) {
