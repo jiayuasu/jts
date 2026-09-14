@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project child.project.url.inherit.append.path="false" xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>org.locationtech.jts</groupId>
+    <groupId>org.datasyslab</groupId>
     <artifactId>jts</artifactId>
-    <version>1.21.0-SNAPSHOT</version>
+    <version>1.21.0-datasyslab-1</version>
     <packaging>pom</packaging>
 
-    <name>JTS Topology Suite</name>
-    <url>https://www.locationtech.org/projects/technology.jts</url>
-    <description>The JTS Topology Suite is an API for 2D linear geometry predicates and functions.</description>
+    <name>JTS Topology Suite (Datasyslab fork)</name>
+    <url>https://github.com/jiayuasu/jts</url>
+    <description>Datasyslab fork of the JTS Topology Suite, with fixes for geometry processing and serialization.</description>
 
     <!--
 
@@ -27,8 +27,8 @@
     To build with jts-sde:
        mvn install -Parcsde
 
-    To build the release (for Maven Central; committers only)
-       mvn install -Drelease
+    To build signed release artifacts locally (see RELEASING.md)
+       mvn -pl modules/core -am verify -Drelease
     -->
 
     <properties>
@@ -74,30 +74,21 @@
             <organization>Individual</organization>
             <organizationUrl>https://tsusiatsoftware.net</organizationUrl>
         </developer>
+        <developer>
+            <id>jiayuasu</id>
+            <name>Jiayu Yu</name>
+            <url>https://github.com/jiayuasu</url>
+        </developer>
     </developers>
 
-    <scm>
-        <connection>scm:git::git@github.com:locationtech/jts.git</connection>
-        <developerConnection>scm:git:git@github.com:locationtech/jts.git</developerConnection>
-        <url>https://github.com/locationtech/jts</url>
-        <tag>HEAD</tag>
+    <scm child.scm.connection.inherit.append.path="false"
+         child.scm.developerConnection.inherit.append.path="false"
+         child.scm.url.inherit.append.path="false">
+        <connection>scm:git:https://github.com/jiayuasu/jts.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/jiayuasu/jts.git</developerConnection>
+        <url>https://github.com/jiayuasu/jts</url>
+        <tag>${project.version}</tag>
     </scm>
-
-    <distributionManagement>
-        <snapshotRepository>
-            <id>repo.eclipse.org</id>
-            <name>JTS Repository - Snapshots</name>
-            <url>https://repo.eclipse.org/content/repositories/jts-snapshots/</url>
-        </snapshotRepository>
-        <repository>
-            <id>ossrh</id>
-            <url>https://oss.sonatype.org/service/local/staging/deploy/maven2/</url>
-        </repository>
-        <site>
-          <id>jts</id>
-          <url>https://locationtech.github.io/jts</url>
-        </site>
-    </distributionManagement>
 
     <dependencyManagement>
         <dependencies>
@@ -141,18 +132,6 @@
         </dependencies>
     </dependencyManagement>
 
-    <!-- Repositories for Dependencies -->
-    <repositories>
-        <repository>
-            <id>central.maven.org</id>
-            <name>Central Maven repository</name>
-            <url>https://central.maven.org/maven2</url>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </repository>
-    </repositories>
-
     <profiles>
         <profile>
             <id>release</id>
@@ -162,23 +141,17 @@
                 </property>
             </activation>
 
-            <distributionManagement>
-                <snapshotRepository>
-                    <id>ossrh</id>
-                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
-                </snapshotRepository>
-            </distributionManagement>
-
             <build>
                 <plugins>
                     <plugin>
-                        <groupId>org.sonatype.plugins</groupId>
-                        <artifactId>nexus-staging-maven-plugin</artifactId>
+                        <groupId>org.sonatype.central</groupId>
+                        <artifactId>central-publishing-maven-plugin</artifactId>
+                        <version>0.11.0</version>
                         <extensions>true</extensions>
                         <configuration>
-                            <serverId>ossrh</serverId>
-                            <nexusUrl>https://oss.sonatype.org/</nexusUrl>
-                            <autoReleaseAfterClose>true</autoReleaseAfterClose>
+                            <publishingServerId>central</publishingServerId>
+                            <autoPublish>true</autoPublish>
+                            <waitUntil>published</waitUntil>
                         </configuration>
                     </plugin>
 
@@ -221,11 +194,11 @@
                 </plugin>
                 <plugin>
                     <artifactId>maven-deploy-plugin</artifactId>
-                    <version>3.0.0-M1</version>
+                    <version>3.1.4</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-gpg-plugin</artifactId>
-                    <version>1.5</version>
+                    <version>3.2.8</version>
                 </plugin>
                 <plugin>
                     <artifactId>maven-jar-plugin</artifactId>
@@ -267,11 +240,6 @@
                     <groupId>org.apache.felix</groupId>
                     <artifactId>maven-bundle-plugin</artifactId>
                     <version>3.3.0</version>
-                </plugin>
-                <plugin>
-                    <groupId>org.sonatype.plugins</groupId>
-                    <artifactId>nexus-staging-maven-plugin</artifactId>
-                    <version>1.6.7</version>
                 </plugin>
             </plugins>
         </pluginManagement>
@@ -376,7 +344,7 @@
               <dependencies>
                 <!-- shared pmd ruleset -->
                 <dependency>
-                  <groupId>org.locationtech.jts</groupId>
+                  <groupId>org.datasyslab</groupId>
                   <artifactId>build-tools</artifactId>
                   <version>${project.version}</version>
                 </dependency>
@@ -416,7 +384,7 @@
               <dependencies>
                 <!-- shared checkstlye config -->
                 <dependency>
-                  <groupId>org.locationtech.jts</groupId>
+                  <groupId>org.datasyslab</groupId>
                   <artifactId>build-tools</artifactId>
                   <version>${project.version}</version>
                 </dependency>

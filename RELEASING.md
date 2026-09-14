@@ -1,260 +1,104 @@
-# JTS Release Guide
+# Datasyslab JTS release guide
 
-This guide is intended for JTS project maintainers, 
-to assist them in preparing releases of the project.
+Fork releases use `org.datasyslab` Maven coordinates and retain the
+`org.locationtech.jts.*` Java packages. The first version is
+`1.21.0-datasyslab-1`, based on upstream commit
+`7e2b0e5d53fa411d6b58b8e5b395b1361f9711f8` from the `org.datasyslab` branch.
+It includes upstream development changes after 1.20.0; it is not an official
+upstream 1.21.0 release.
 
-## Release Checklist
+## Release contents
 
-### Preparation
+The initial publication contains these artifacts at the same version:
 
-1. Locate the [Release Milestone](https://github.com/locationtech/jts/milestones) for the release.
-   
-2. Apply this milestone Issues and PRs included in the release.
+- `org.datasyslab:jts` (parent POM)
+- `org.datasyslab:jts-modules` (parent POM)
+- `org.datasyslab:jts-core` (binary, sources, Javadoc and test jars)
 
-3. Update the [Version History](https://github.com/locationtech/jts/blob/master/doc/JTS_Version_History.md)
+The `build-tools` module is built and installed locally for Checkstyle and PMD.
+It is not a runtime dependency and is not deployed. IO, application and optional
+database modules remain available for source builds but are not part of the
+initial publication. The `-pl modules/core -am` selection below defines this scope.
 
-   1. Record significant changes (should have been done ongoing)
-   
-   2. Enter date of release
+## Prepare a version
 
-4. Start an eclipse release process
+1. Start from the `org.datasyslab` branch. Keep fixes in separate commits with
+   regression tests, and record their upstream references in the release notes.
+2. Set the same fork version in all active module POMs and `build-tools/pom.xml`.
+   Keep the upstream version prefix and increment the `datasyslab-N` suffix.
+3. Update `JTSVersion.RELEASE_INFO`, the README and this guide for that version.
+4. Preserve the upstream license files, source headers, exported packages and
+   module names. Do not relocate or bundle another copy of JTS.
 
-   Example review: [1.17.0-release-review](https://projects.eclipse.org/projects/locationtech.jts/reviews/1.17.0-release-review) page
-   
-   * Use the text from [Version History](https://github.com/locationtech/jts/blob/master/doc/JTS_Version_History.md) to quickly write the describe the release.
-   
-   * Email review page to locationtech-pmc [like this](locationtech-pmc/msg01095.html) for PMC approval.
+## Build and test locally
 
-   * Email review page emo@eclipse.org when ready, to save time you can link to the PMC approval thread.
-   
-   * EMO opens a [bug ticket like this](https://bugs.eclipse.org/bugs/show_bug.cgi?id=564358) to track progress
-   
-   The release process takes around two weeks, and are scheduled for the 1st and 15th of each month.
+Use Maven 3.9.2 or newer and JDK 17. The compiler still targets Java 8 bytecode.
+Bootstrap the repository's build configuration, then run the full reactor:
 
-### Update Artifacts
+```sh
+mvn -B -f build-tools/pom.xml clean install
+mvn -B clean install
+```
 
-On master:
+Build the publication subset, including sources and Javadocs:
 
-1. Before you start check that the Maven build executes with no errors
+```sh
+mvn -B -pl modules/core -am clean verify
+```
 
-   ```
-   mvn clean install
-   ```
+These commands do not upload artifacts. Inspect the core jars in
+`modules/core/target`, verify the fork version and module metadata, and test a
+consumer against the built artifact. A plain build is unsigned and cannot be
+submitted to Central as a complete release.
 
-2. Set the version number in Java class: [`org.locationtech.jts.JTSVersion`](https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/JTSVersion.java)
-   
-   Change SNAPSHOT version:
-   
-   ```
-   private static final String RELEASE_INFO = "SNAPSHOT";
-   ```
-   
-   To release version:
-   
-   ```
-   private static final String RELEASE_INFO = "";
-   ```
+## Configure signing and Central access
 
-2. Update version number in Maven POMs (run the Maven release plugin at project root:
-   
-   ```
-   mvn versions:set -DnewVersion=1.19.0
-   ```
+The publishing account must have access to the `org.datasyslab` namespace in
+the [Central Portal](https://central.sonatype.com/). Configure a Portal user token
+in Maven's user settings, using server ID `central`:
 
-3. Edit ``build-tools/pom.xml`` by hand, and compile to test.
-   
-   ```
-   mvn clean install
-   ```
-   
-3. Commit this change.
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>central</id>
+      <username>${env.CENTRAL_TOKEN_USERNAME}</username>
+      <password>${env.CENTRAL_TOKEN_PASSWORD}</password>
+    </server>
+  </servers>
+</settings>
+```
 
-   ```
-   git add .
-   git commit -m "Release version 1.19.0"
-   git push
-   ```
-      
-4. Tag this commit, and push the tag to GitHub.
+Keep credentials in local settings or CI secrets. Configure GPG with the release
+signing key and make its public key discoverable as required by Central. The
+Maven GPG plugin can use the local GPG agent; `-Dgpg.keyname=KEY_ID` selects a key.
 
-   ```
-   git tag -a 1.19.0 -m "Release version 1.19.0"
-   git push --tags
-   ```
+Build and sign locally before uploading:
 
-   This is the commit that will form the GitHub release below.
+```sh
+mvn -B -pl modules/core -am -Drelease clean verify
+```
 
-### Create Release Artifacts
+`verify` does not upload anything. Check the generated `.asc` signatures for
+the POMs and attached artifacts. See the [Central Maven publishing guide](https://central.sonatype.org/publish/publish-portal-maven/)
+and [artifact requirements](https://central.sonatype.org/publish/requirements/).
 
-1. Before you start double check that you have `gpg` installed and configured, with your public key distributed.
-   
-   References: [Working with PGP Signatures](https://central.sonatype.org/pages/working-with-pgp-signatures.html)
-   
+## Publish
 
-2. The `gpg-agent` will remember a passphrase for a short duration.
-   
-   To interact with the agent (so it asks you the passphrase):
-   
-   ```
-   gpg --use-agent --armor --detach-sign --output - pom.xml
-   ```
-   
-   Reference: [Configuring GPG/PGP for Maven Releases to Sonatype on Mac OS X](https://nblair.github.io/2015/10/29/maven-gpg-sonatype/)
-    
-2. Execute the final Maven release build which will sign jars:
-   
-   ```
-   mvn clean install -Drelease
-   ```
+After review, merge the fixes and release configuration into `org.datasyslab`.
+Create and push an annotated tag matching the Maven version, for example
+`1.21.0-datasyslab-1`. Build and publish from that exact tag:
 
-### Deploy the Release
+```sh
+mvn -B -f build-tools/pom.xml clean install
+mvn -B -pl modules/core -am -Drelease clean deploy
+```
 
-1. Deploy to Maven Central, using credentials in your `~/.m2/settings.xml`:
-   
-   ```
-   <server>
-      <id>ossrh</id>
-      <username>jira_user</username>
-      <password>jira_password</password>
-   </server>
-   ```
-   
-   Reference: [Deploying to OSSRH with Apache Maven](https://central.sonatype.org/pages/apache-maven.html)
-   
-2. Deploy to Maven Central with the release property and profile 
-   
-   ```
-   mvn deploy -Drelease
-   ```
+**This command uploads and automatically publishes the release to Maven Central.**
+The release profile uses the Central Publishing plugin and GPG signing. It waits
+for Central to report publication. `autoPublish=false` would still upload;
+neither that setting nor `skipPublishing` is a local bundle-building mode.
 
-4. Create a [JTS GitHub release](https://github.com/locationtech/jts/releases)
-
-   1. Navigate to https://github.com/locationtech/jts/releases and use "Draft new Release"
-      based on your tag. 
-   
-   2. Copy the release notes from `JTS_Version_History.md`
-   
-      Example: [1.17.0](https://github.com/locationtech/jts/releases/tag/1.17.0]
-
-   3. Add release artifacts (from the `target` folders):
-      
-      * jts-core-1.18.0-javadoc.jar
-      * jts-core-1.18.0-sources.jar
-      * jts-core-1.18.0.jar
-      * jts-io-common-1.18.0-javadoc.jar
-      * jts-io-common-1.18.0-sources.jar
-      * jts-io-common-1.18.0.jar
-      * JTSTestBuilder.jar
-   
-   4. Tip: Mark as a draft release (until Eclipse review process completes)
-
-### Publish Javadocs
-
-Update [Javadoc on JTS Github IO](http://locationtech.github.io/jts/javadoc/):
-
-1. Javadoc is generated by the Maven build above.
-   
-2. Update branch [`gh-pages`](https://github.com/locationtech/jts/tree/gh-pages):
-   
-   ```bash
-   cd ..
-   git clone https://github.com/locationtech/jts.git jts-docs
-   cd jts-docs
-   git checkout --track origin/gh-pages
-   git mv javadoc javadoc-1.18.0
-   git mv javadoc-io javadoc-io-1.18.0
-   cp -r ../jts/modules/core/target/apidocs/ javadoc  
-   cp -r ../jts/modules/io/common/target/apidocs javadoc-io
-   ```
-   
-   Edit ``index.html`` with new details:
-   
-   ```
-   <li>Javadoc for JTS 1.19.0 (
-       <a href="javadoc/index.html" target="javadoc">jts-core</a> |
-       <a href="javadoc-io/index.html" target="javadoc">jts-io-common</a>)</li>
-   <li>Javadoc for JTS 1.18.0 (
-       <a href="javadoc-1.18.0/index.html" target="javadoc">jts-core</a> |
-       <a href="javadoc-io-1.18.0/index.html" target="javadoc">jts-io-common</a>)</li>
-   ```
-   
-   Commit 
-   ```
-   git add .
-   git commit -m "JTS 1.19.0 javadocs"
-   ```
-
-### Post-release actions
-
-Update master to the next release version:
-
-1. Set the version number in Java class: [`org.locationtech.jts.JTSVersion`](https://github.com/locationtech/jts/blob/master/modules/core/src/main/java/org/locationtech/jts/JTSVersion.java)
-   
-   Change release version from (e.g.):
-   
-   ```
-   public static final int MAJOR = 1;
-   public static final int MINOR = 19;
-   public static final int PATCH = 0;
-   private static final String RELEASE_INFO = "";
-   ```
-   
-   To the next SNAPSHOT version:
-   
-   ```
-   public static final int MAJOR = 1;
-   public static final int MINOR = 20;
-   public static final int PATCH = 0;
-   private static final String RELEASE_INFO = "SNAPSHOT";
-   ```
-   
-2. Update version number in Maven POMs (run the Maven release plugin at project root:
-   
-   ```
-   mvn versions:set -DnewVersion=1.20.0-SNAPSHOT
-   ```
-   
-3. Edit ``build-tools/pom.xml`` manually to update the main `<version ` entry:
-   ```
-   <version>1.20.1-SNAPSHOT</version>
-   ```
-   At this point `git status` should show the following:
-   
-   ```
-   modified:   build-tools/pom.xml
-	modified:   modules/app/pom.xml
-	modified:   modules/core/pom.xml
-	modified:   modules/core/src/main/java/org/locationtech/jts/JTSVersion.java
-	modified:   modules/example/pom.xml
-	modified:   modules/io/common/pom.xml
-	modified:   modules/io/ora/pom.xml
-	modified:   modules/io/pom.xml
-	modified:   modules/lab/pom.xml
-	modified:   modules/pom.xml
-	modified:   modules/tests/pom.xml
-	modified:   pom.xml
-   ```
-5. Compile the project to test the changes.
-   
-   ```
-   mvn clean install
-   ```
-   The mvn execution log should show the new version, and the build artifacts in the `target` directories
-   should be stamped with the new version number. 
- 
-6. If the build is good, commit the updates to initiate the next version:
-
-   ```
-   git add .
-   git commit -m "Version 1.20.0-SNAPSHOT"
-   git push
-   ```  
-   
-5. Add a new empty version entry to the [Version History](https://github.com/locationtech/jts/blob/master/doc/JTS_Version_History.md), ready to record revisions
-
-### Announcing the new release
-
-* Message to [JTS Dev mail list](https://accounts.eclipse.org/mailing-list/jts-dev)
-* Comment on [Gitter channel](https://gitter.im/locationtech/jts)
-* Social media?
-* Others?
+Verify the published POM parent chain and jars using a clean Maven repository,
+then create release notes listing the upstream base and each included fix.
+Central versions are immutable: use a new suffix for any subsequent correction.

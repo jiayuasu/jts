@@ -1,3 +1,18 @@
+# Datasyslab JTS fork
+
+This branch builds JTS under `org.datasyslab:jts-core`. It retains the
+`org.locationtech.jts.*` Java packages and the upstream licenses.
+
+The first fork version is `1.21.0-datasyslab-1`, based on upstream commit
+[`7e2b0e5d`](https://github.com/locationtech/jts/commit/7e2b0e5d53fa411d6b58b8e5b395b1361f9711f8).
+This is a fork of upstream development code, not an official JTS 1.21.0 release.
+See [RELEASING.md](RELEASING.md) for build and publishing instructions.
+
+Use the fork in place of `org.locationtech.jts:jts-core`. Exclude the upstream
+artifact from transitive dependencies so both jars do not supply the same classes.
+
+The upstream project documentation follows.
+
 JTS Topology Suite
 ==================
 

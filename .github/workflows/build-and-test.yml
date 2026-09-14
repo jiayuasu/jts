@@ -24,4 +24,4 @@ jobs:
       - name: Remove JTS artifacts from cache
         run: |
           find . -name '*.tar.gz' -exec rm {} \;
-          rm -rf $HOME/.m2/repository/org/locationtech/jts
+          rm -rf $HOME/.m2/repository/org/datasyslab
