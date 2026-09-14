@@ -199,4 +199,75 @@ public class WKTWriterTest extends TestCase {
       assertEquals(7.0, lineZM.getPointN(1).getCoordinate().getZ());
       assertEquals(8.0, lineZM.getPointN(1).getCoordinate().getM());
   }
+
+  public void testWriteEmptyPointInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("POINT");
+  }
+
+  public void testWriteEmptyLineStringInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("LINESTRING");
+  }
+
+  public void testWriteEmptyLinearRingInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("LINEARRING");
+  }
+
+  public void testWriteEmptyPolygonInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("POLYGON");
+  }
+
+  public void testWriteEmptyMultiPointInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("MULTIPOINT");
+  }
+
+  public void testWriteEmptyMultiLineStringInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("MULTILINESTRING");
+  }
+
+  public void testWriteEmptyMultiPolygonInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("MULTIPOLYGON");
+  }
+
+  public void testWriteEmptyGeometryCollectionInGeometryCollection() throws ParseException {
+    checkEmptyGeometryInCollection("GEOMETRYCOLLECTION");
+  }
+
+  public void testWriteNestedEmptyCollectionMembers() throws ParseException {
+    checkWKTWriterRoundTrip(
+        "GEOMETRYCOLLECTION ZM(LINESTRING ZM(0 0 1 2, 1 1 3 4), "
+        + "MULTIPOINT ZM(EMPTY), MULTILINESTRING ZM(EMPTY), MULTIPOLYGON ZM(EMPTY), "
+        + "GEOMETRYCOLLECTION ZM(POINT ZM EMPTY, GEOMETRYCOLLECTION ZM EMPTY))");
+  }
+
+  private void checkEmptyGeometryInCollection(String type) throws ParseException {
+    String[] dimensions = {"", "Z", "M", "ZM"};
+    String[] coordinates = {
+        "0 0, 1 1", "0 0 1, 1 1 2", "0 0 2, 1 1 4", "0 0 1 2, 1 1 3 4"
+    };
+    for (int i = 0; i < dimensions.length; i++) {
+      String empty = type + " " + (dimensions[i].isEmpty() ? "" : dimensions[i] + " ") + "EMPTY";
+      String wkt = "GEOMETRYCOLLECTION " + dimensions[i] + "(LINESTRING "
+          + dimensions[i] + "(" + coordinates[i] + "), " + empty + ")";
+      checkWKTWriterRoundTrip(wkt);
+    }
+  }
+
+  private void checkWKTWriterRoundTrip(String wkt) throws ParseException {
+    WKTReader reader = new WKTReader();
+    Geometry geometry = reader.read(wkt);
+    WKTWriter writer = new WKTWriter(4);
+    String[] outputs = {writer.write(geometry), writer.writeFormatted(geometry)};
+    assertEquals(wkt, outputs[0]);
+    for (String output : outputs) {
+      Geometry roundTrip = reader.read(output);
+      assertTrue(geometry.equalsExact(roundTrip));
+      Coordinate[] expected = geometry.getCoordinates();
+      Coordinate[] actual = roundTrip.getCoordinates();
+      for (int i = 0; i < expected.length; i++) {
+        assertEquals(expected[i].getZ(), actual[i].getZ(), 0);
+        assertEquals(expected[i].getM(), actual[i].getM(), 0);
+      }
+    }
+  }
+
 }

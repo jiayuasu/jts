@@ -48,6 +48,7 @@ Distributions for older JTS versions can be obtained at the
 * Add `BufferOp` hole erosion heuristic for rings (#1117)
 * Fix `BufferOp` element erosion for negative distance (#1119)
 * Fix writing XYM geometries as WKB (#1092)
+* Fix `WKTWriter` to separate Z/M markers from `EMPTY` for nested empty geometries ([jiayuasu/jts#7](https://github.com/jiayuasu/jts/pull/7))
 * Fix `DepthSegment` comparator (#1132)
 * Fix `BoundaryChainNoder` to split chains at self-touch nodes (also fixes `CoverageUnion`) (#1134)
 * Fix `OffsetCurve` `simplifyFactor` parameter handling (#1151)
