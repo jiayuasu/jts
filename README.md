@@ -11,6 +11,14 @@ See [RELEASING.md](RELEASING.md) for build and publishing instructions.
 Use the fork in place of `org.locationtech.jts:jts-core`. Exclude the upstream
 artifact from transitive dependencies so both jars do not supply the same classes.
 
+For applications that must retain stock JTS 1.20 geometry classes, the separate
+`org.datasyslab:jts-io-patch:1.21.0-datasyslab-1` artifact provides the fork's
+empty-geometry fixes as `org.datasyslab.jts.io.WKBReader` and
+`org.datasyslab.jts.io.WKTWriter`. It depends on
+`org.locationtech.jts:jts-core:1.20.0`; geometry objects and the remaining IO API,
+including `WKBWriter`, continue to use `org.locationtech.jts.*` types. Callers must
+import the patched reader or writer explicitly.
+
 The upstream project documentation follows.
 
 JTS Topology Suite
@@ -98,5 +106,4 @@ If you are interested in contributing to JTS please read the [**Contributing Gui
 * [**GEOSwift**](https://github.com/GEOSwift/GEOSwift)- Swift library using GEOS
 
 There are many projects using GEOS - for a list see the [GEOS wiki](https://trac.osgeo.org/geos/wiki/Applications).
-
 

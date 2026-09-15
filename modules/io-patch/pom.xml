@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.datasyslab</groupId>
+        <artifactId>jts-modules</artifactId>
+        <version>1.21.0-datasyslab-1</version>
+    </parent>
+    <artifactId>jts-io-patch</artifactId>
+    <name>${project.groupId}:${project.artifactId}</name>
+
+    <scm>
+        <tag>jts-io-patch-${project.version}</tag>
+    </scm>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>${project.basedir}/../..</directory>
+                <targetPath>META-INF</targetPath>
+                <includes>
+                    <include>LICENSE_EPLv2.txt</include>
+                    <include>LICENSE_EDLv1.txt</include>
+                </includes>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>generate-isolated-io-sources</id>
+                        <phase>generate-sources</phase>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io"/>
+                                <copy todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io">
+                                    <fileset dir="${project.basedir}/../core/src/main/java/org/locationtech/jts/io">
+                                        <include name="WKBReader.java"/>
+                                        <include name="WKTWriter.java"/>
+                                        <include name="CheckOrdinatesFilter.java"/>
+                                    </fileset>
+                                </copy>
+                                <replace dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io"
+                                         includes="*.java"
+                                         token="package org.locationtech.jts.io;"
+                                         value="package org.datasyslab.jts.io;${line.separator}${line.separator}import org.locationtech.jts.io.*;"/>
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>3.6.1</version>
+                <executions>
+                    <execution>
+                        <id>add-generated-io-sources</id>
+                        <phase>generate-sources</phase>
+                        <goals>
+                            <goal>add-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-sources/io-patch</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <configuration>
+                    <archive>
+                        <manifestEntries>
+                            <Automatic-Module-Name>org.datasyslab.jts.io.patch</Automatic-Module-Name>
+                        </manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.locationtech.jts</groupId>
+            <artifactId>jts-core</artifactId>
+            <version>1.20.0</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+</project>

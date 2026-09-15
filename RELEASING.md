@@ -28,7 +28,10 @@ initial publication. The `-pl modules/core -am` selection below defines this sco
    Keep the upstream version prefix and increment the `datasyslab-N` suffix.
 3. Update `JTSVersion.RELEASE_INFO`, the README and this guide for that version.
 4. Preserve the upstream license files, source headers, exported packages and
-   module names. Do not relocate or bundle another copy of JTS.
+   module names in the full `jts-core` fork. Do not relocate or bundle another
+   copy of JTS in that artifact. The narrowly scoped `jts-io-patch` module is the
+   documented exception: it generates three IO classes in a separate namespace
+   while retaining stock JTS geometry and support types.
 
 ## Build and test locally
 
@@ -50,6 +53,26 @@ These commands do not upload artifacts. Inspect the core jars in
 `modules/core/target`, verify the fork version and module metadata, and test a
 consumer against the built artifact. A plain build is unsigned and cannot be
 submitted to Central as a complete release.
+
+## Build the isolated IO patch
+
+`org.datasyslab:jts-io-patch:1.21.0-datasyslab-1` is an independently built
+artifact for applications that keep `org.locationtech.jts:jts-core:1.20.0` at
+runtime. During `generate-sources`, it selects `WKBReader`, `WKTWriter`, and
+package-private `CheckOrdinatesFilter` from the maintained core sources and
+generates them under `org.datasyslab.jts.io`. Their source headers and references
+to upstream geometry, `Ordinate`, `ParseException`, and stream types are retained.
+It does not contain `WKBWriter` or any geometry classes.
+
+Build and install only this artifact with JDK 17 (producing Java 8 bytecode):
+
+```sh
+mvn -B -f modules/io-patch/pom.xml clean verify
+mvn -B -f modules/io-patch/pom.xml clean install
+```
+
+The binary, source, and Javadoc jars are written to `modules/io-patch/target`.
+Inspect those files and test a consumer with stock JTS 1.20 before release.
 
 ## Configure signing and Central access
 
@@ -102,3 +125,18 @@ neither that setting nor `skipPublishing` is a local bundle-building mode.
 Verify the published POM parent chain and jars using a clean Maven repository,
 then create release notes listing the upstream base and each included fix.
 Central versions are immutable: use a new suffix for any subsequent correction.
+
+The isolated IO patch has a separate publication scope. Its parent POMs already
+exist at the same immutable version, so do not deploy the reactor or use `-am`.
+Create the distinct annotated tag
+`jts-io-patch-1.21.0-datasyslab-1` from the reviewed IO patch commit; do not move
+or replace the existing full-core tag. After local verification and explicit
+release approval, deploy only the module from that new tag:
+
+```sh
+mvn -B -f modules/io-patch/pom.xml -Drelease clean deploy
+```
+
+This command uploads and publishes the IO patch. Never rerun the full-core deploy
+to publish it, because that would attempt to redeploy existing parent and core
+coordinates.
