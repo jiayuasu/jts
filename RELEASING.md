@@ -131,12 +131,12 @@ Verify the published POM parent chain and jars using a clean Maven repository,
 then create release notes listing the upstream base and each included fix.
 Central versions are immutable: use a new suffix for any subsequent correction.
 
-The isolated IO patch has a separate publication scope. Its parent POMs already
-exist at the same immutable version, so do not deploy the reactor or use `-am`.
-Create the distinct annotated tag
-`jts-io-patch-1.21.0-datasyslab-1` from the reviewed IO patch commit; do not move
-or replace the existing full-core tag. After local verification and explicit
-release approval, deploy only the module from that new tag:
+The isolated IO patch has a separate publication scope. Its parent POMs remain
+at the immutable `1.21.0-datasyslab-1` version while the child module explicitly
+uses `1.21.0-datasyslab-2`, so do not deploy the reactor or use `-am`. Create the
+distinct annotated tag `jts-io-patch-1.21.0-datasyslab-2` from the reviewed IO
+patch commit; do not move or replace the existing full-core tag. After local
+verification and explicit release approval, deploy only the module from that tag:
 
 ```sh
 mvn -B -f modules/io-patch/pom.xml -Drelease clean deploy
