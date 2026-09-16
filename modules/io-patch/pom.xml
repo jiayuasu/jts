@@ -9,6 +9,7 @@
         <version>1.21.0-datasyslab-1</version>
     </parent>
     <artifactId>jts-io-patch</artifactId>
+    <version>1.21.0-datasyslab-2</version>
     <name>${project.groupId}:${project.artifactId}</name>
 
     <scm>
@@ -85,6 +86,26 @@
                         </manifestEntries>
                     </archive>
                 </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.datasyslab</groupId>
+                        <artifactId>build-tools</artifactId>
+                        <version>1.21.0-datasyslab-1</version>
+                    </dependency>
+                </dependencies>
+            </plugin>
+            <plugin>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.datasyslab</groupId>
+                        <artifactId>build-tools</artifactId>
+                        <version>1.21.0-datasyslab-1</version>
+                    </dependency>
+                </dependencies>
             </plugin>
         </plugins>
     </build>

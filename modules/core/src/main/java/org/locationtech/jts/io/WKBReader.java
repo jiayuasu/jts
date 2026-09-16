@@ -140,9 +140,21 @@ public class WKBReader
   }
 
   public WKBReader(GeometryFactory geometryFactory) {
+    this(geometryFactory, geometryFactory.getCoordinateSequenceFactory());
+  }
+
+  /**
+   * Creates a reader which constructs geometries with the given geometry factory
+   * and allocates input coordinate sequences with the given sequence factory.
+   *
+   * @param geometryFactory the factory used to construct output geometries
+   * @param coordinateSequenceFactory the factory used to read coordinate sequences
+   */
+  public WKBReader(GeometryFactory geometryFactory,
+      CoordinateSequenceFactory coordinateSequenceFactory) {
     this.factory = geometryFactory;
     precisionModel = factory.getPrecisionModel();
-    csFactory = factory.getCoordinateSequenceFactory();
+    csFactory = coordinateSequenceFactory;
   }
 
   /**

@@ -56,13 +56,18 @@ submitted to Central as a complete release.
 
 ## Build the isolated IO patch
 
-`org.datasyslab:jts-io-patch:1.21.0-datasyslab-1` is an independently built
+`org.datasyslab:jts-io-patch:1.21.0-datasyslab-2` is an independently built
 artifact for applications that keep `org.locationtech.jts:jts-core:1.20.0` at
 runtime. During `generate-sources`, it selects `WKBReader`, `WKTWriter`, and
 package-private `CheckOrdinatesFilter` from the maintained core sources and
 generates them under `org.datasyslab.jts.io`. Their source headers and references
 to upstream geometry, `Ordinate`, `ParseException`, and stream types are retained.
 It does not contain `WKBWriter` or any geometry classes.
+
+The isolated IO patch has its own version history. Version
+`1.21.0-datasyslab-1` introduced the three isolated IO classes. Version
+`1.21.0-datasyslab-2` adds independent input coordinate sequence allocation to
+`WKBReader` while retaining the caller's geometry factory on parsed objects.
 
 Build and install only this artifact with JDK 17 (producing Java 8 bytecode):
 
@@ -126,12 +131,12 @@ Verify the published POM parent chain and jars using a clean Maven repository,
 then create release notes listing the upstream base and each included fix.
 Central versions are immutable: use a new suffix for any subsequent correction.
 
-The isolated IO patch has a separate publication scope. Its parent POMs already
-exist at the same immutable version, so do not deploy the reactor or use `-am`.
-Create the distinct annotated tag
-`jts-io-patch-1.21.0-datasyslab-1` from the reviewed IO patch commit; do not move
-or replace the existing full-core tag. After local verification and explicit
-release approval, deploy only the module from that new tag:
+The isolated IO patch has a separate publication scope. Its parent POMs remain
+at the immutable `1.21.0-datasyslab-1` version while the child module explicitly
+uses `1.21.0-datasyslab-2`, so do not deploy the reactor or use `-am`. Create the
+distinct annotated tag `jts-io-patch-1.21.0-datasyslab-2` from the reviewed IO
+patch commit; do not move or replace the existing full-core tag. After local
+verification and explicit release approval, deploy only the module from that tag:
 
 ```sh
 mvn -B -f modules/io-patch/pom.xml -Drelease clean deploy
