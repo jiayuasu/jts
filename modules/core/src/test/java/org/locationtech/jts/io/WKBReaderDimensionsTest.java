@@ -21,6 +21,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
@@ -139,6 +140,42 @@ public class WKBReaderDimensionsTest extends TestCase {
     }
   }
 
+  public void testInputFactoryIsIndependentFromGeometryFactory() throws ParseException {
+    CoordinateSequenceFactory geometrySequences = CoordinateArraySequenceFactory.instance();
+    GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(10), 4326,
+        geometrySequences);
+    WKBReader reader = new WKBReader(geometryFactory, new DimensionAwareFactory());
+
+    Geometry nested = reader.read(collectionWKB(ByteOrder.LITTLE_ENDIAN, 4326,
+        emptyWKB(1, 0x80000000, 3, ByteOrder.BIG_ENDIAN, 0),
+        emptyWKB(3, 0x40000000, 3, ByteOrder.LITTLE_ENDIAN, 3857)));
+    assertSame(geometryFactory, nested.getFactory());
+    assertSame(geometryFactory, nested.getGeometryN(0).getFactory());
+    assertSame(geometryFactory, nested.getGeometryN(1).getFactory());
+    assertTrue(sequence(nested.getGeometryN(0)) instanceof DimensionAwareSequence);
+    assertTrue(sequence(nested.getGeometryN(1)) instanceof DimensionAwareSequence);
+    checkEmptyGeometry(nested.getGeometryN(0), 3, 0, 4326);
+    checkEmptyGeometry(nested.getGeometryN(1), 3, 1, 3857);
+
+    Point ordinary = geometryFactory.createPoint();
+    assertFalse(ordinary.getCoordinateSequence() instanceof DimensionAwareSequence);
+  }
+
+  public void testSeparateInputFactoryAppliesPrecisionAndRepairsLine() throws ParseException {
+    GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(10), 0,
+        CoordinateArraySequenceFactory.instance());
+    WKBReader reader = new WKBReader(geometryFactory, new DimensionAwareFactory());
+    ByteBuffer wkb = ByteBuffer.allocate(25).order(ByteOrder.LITTLE_ENDIAN);
+    wkb.put((byte) 1).putInt(2).putInt(1).putDouble(1.26).putDouble(2.24);
+
+    LineString line = (LineString) reader.read(wkb.array());
+    assertSame(geometryFactory, line.getFactory());
+    assertTrue(line.getCoordinateSequence() instanceof DimensionAwareSequence);
+    assertEquals(2, line.getNumPoints());
+    assertEquals(1.3, line.getCoordinateN(0).x);
+    assertEquals(2.2, line.getCoordinateN(0).y);
+  }
+
   private void checkEmpty(int geometryType, int ewkbFlags, int isoOffset,
       int dimension, int measures) throws ParseException {
     for (CoordinateSequenceFactory factory : FACTORIES) {
@@ -204,6 +241,11 @@ public class WKBReaderDimensionsTest extends TestCase {
 
   private static class DimensionAwareFactory extends PackedCoordinateSequenceFactory {
     private static final long serialVersionUID = 1L;
+
+    @Override
+    public CoordinateSequence create(int size, int dimension) {
+      return new DimensionAwareSequence(size, dimension, 0);
+    }
 
     @Override
     public CoordinateSequence create(int size, int dimension, int measures) {

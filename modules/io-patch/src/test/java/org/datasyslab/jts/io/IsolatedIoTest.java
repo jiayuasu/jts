@@ -23,6 +23,7 @@ import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.LineString;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.CoordinateArraySequence;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
 import org.locationtech.jts.io.Ordinate;
@@ -91,6 +92,48 @@ public class IsolatedIoTest extends TestCase {
     }
   }
 
+  public void testSeparateInputFactoryUsesStockGeometryTypes() throws ParseException {
+    GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(10), 4326,
+        PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
+    WKBReader reader = new WKBReader(geometryFactory, new TrackingFactory());
+
+    Geometry geometry = reader.read(emptyWkb(1, 0x80000000, 3));
+    assertSame(geometryFactory, geometry.getFactory());
+    assertTrue(sequence(geometry) instanceof TrackingSequence);
+    assertEquals(3, sequence(geometry).getDimension());
+    assertEquals(0, sequence(geometry).getMeasures());
+
+    Point ordinary = geometryFactory.createPoint();
+    assertFalse(ordinary.getCoordinateSequence() instanceof TrackingSequence);
+  }
+
+  public void testSeparateInputFactoryPreservesNestedSridsAndRepairsInput()
+      throws ParseException {
+    GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(10), 4326,
+        PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
+    WKBReader reader = new WKBReader(geometryFactory, new TrackingFactory());
+
+    GeometryCollection collection = (GeometryCollection) reader.read(collectionWkb(4326,
+        emptyWkb(1, 0x80000000, 3),
+        emptyWkbWithSrid(3, 0x40000000, 3, 3857)));
+    assertSame(geometryFactory, collection.getFactory());
+    assertEquals(4326, collection.getGeometryN(0).getSRID());
+    assertEquals(3857, collection.getGeometryN(1).getSRID());
+    assertEquals(3, sequence(collection.getGeometryN(0)).getDimension());
+    assertEquals(0, sequence(collection.getGeometryN(0)).getMeasures());
+    assertEquals(3, sequence(collection.getGeometryN(1)).getDimension());
+    assertEquals(1, sequence(collection.getGeometryN(1)).getMeasures());
+
+    ByteBuffer malformedLine = ByteBuffer.allocate(25).order(ByteOrder.LITTLE_ENDIAN);
+    malformedLine.put((byte) 1).putInt(2).putInt(1).putDouble(1.26).putDouble(2.24);
+    LineString line = (LineString) reader.read(malformedLine.array());
+    assertSame(geometryFactory, line.getFactory());
+    assertTrue(line.getCoordinateSequence() instanceof TrackingSequence);
+    assertEquals(2, line.getNumPoints());
+    assertEquals(1.3, line.getCoordinateN(0).x);
+    assertEquals(2.2, line.getCoordinateN(0).y);
+  }
+
   private void checkEmpty(int type, int typeFlags, int dimension, int measures)
       throws ParseException {
     Geometry geometry = new WKBReader().read(emptyWkb(type, typeFlags, dimension));
@@ -118,8 +161,33 @@ public class IsolatedIoTest extends TestCase {
     return buffer.array();
   }
 
+  private static byte[] emptyWkbWithSrid(int type, int typeFlags, int dimension, int srid) {
+    byte[] withoutSrid = emptyWkb(type, typeFlags, dimension);
+    ByteBuffer source = ByteBuffer.wrap(withoutSrid).order(ByteOrder.LITTLE_ENDIAN);
+    source.get();
+    int encodedType = source.getInt();
+    ByteBuffer result = ByteBuffer.allocate(withoutSrid.length + 4).order(ByteOrder.LITTLE_ENDIAN);
+    result.put((byte) 1).putInt(encodedType | 0x20000000).putInt(srid);
+    result.put(withoutSrid, 5, withoutSrid.length - 5);
+    return result.array();
+  }
+
+  private static byte[] collectionWkb(int srid, byte[]... children) {
+    int size = 13;
+    for (byte[] child : children) size += child.length;
+    ByteBuffer result = ByteBuffer.allocate(size).order(ByteOrder.LITTLE_ENDIAN);
+    result.put((byte) 1).putInt(7 | 0x20000000).putInt(srid).putInt(children.length);
+    for (byte[] child : children) result.put(child);
+    return result.array();
+  }
+
   private static class TrackingFactory extends PackedCoordinateSequenceFactory {
     private static final long serialVersionUID = 1L;
+
+    @Override
+    public CoordinateSequence create(int size, int dimension) {
+      return new TrackingSequence(size, dimension, 0);
+    }
 
     @Override
     public CoordinateSequence create(int size, int dimension, int measures) {

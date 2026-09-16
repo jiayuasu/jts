@@ -12,12 +12,14 @@ Use the fork in place of `org.locationtech.jts:jts-core`. Exclude the upstream
 artifact from transitive dependencies so both jars do not supply the same classes.
 
 For applications that must retain stock JTS 1.20 geometry classes, the separate
-`org.datasyslab:jts-io-patch:1.21.0-datasyslab-1` artifact provides the fork's
+`org.datasyslab:jts-io-patch:1.21.0-datasyslab-2` artifact provides the fork's
 empty-geometry fixes as `org.datasyslab.jts.io.WKBReader` and
 `org.datasyslab.jts.io.WKTWriter`. It depends on
 `org.locationtech.jts:jts-core:1.20.0`; geometry objects and the remaining IO API,
 including `WKBWriter`, continue to use `org.locationtech.jts.*` types. Callers must
-import the patched reader or writer explicitly.
+import the patched reader or writer explicitly. Version `1.21.0-datasyslab-2`
+also lets callers supply a reader-only coordinate sequence factory independently
+from the geometry factory retained by parsed geometry objects.
 
 The upstream project documentation follows.
 

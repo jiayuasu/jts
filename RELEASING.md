@@ -56,13 +56,18 @@ submitted to Central as a complete release.
 
 ## Build the isolated IO patch
 
-`org.datasyslab:jts-io-patch:1.21.0-datasyslab-1` is an independently built
+`org.datasyslab:jts-io-patch:1.21.0-datasyslab-2` is an independently built
 artifact for applications that keep `org.locationtech.jts:jts-core:1.20.0` at
 runtime. During `generate-sources`, it selects `WKBReader`, `WKTWriter`, and
 package-private `CheckOrdinatesFilter` from the maintained core sources and
 generates them under `org.datasyslab.jts.io`. Their source headers and references
 to upstream geometry, `Ordinate`, `ParseException`, and stream types are retained.
 It does not contain `WKBWriter` or any geometry classes.
+
+The isolated IO patch has its own version history. Version
+`1.21.0-datasyslab-1` introduced the three isolated IO classes. Version
+`1.21.0-datasyslab-2` adds independent input coordinate sequence allocation to
+`WKBReader` while retaining the caller's geometry factory on parsed objects.
 
 Build and install only this artifact with JDK 17 (producing Java 8 bytecode):
 
