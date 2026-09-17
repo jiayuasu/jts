@@ -645,6 +645,12 @@ public class GeometryFactory
    * is used to copy the {@link CoordinateSequence}s
    * of the input geometry.
    * <p>
+   * Empty collection members and polygon rings are retained. Empty shells
+   * are copied through the coordinate sequence factory, so their coordinate
+   * layout can be retained as well. Every copied component is a new geometry
+   * created by this factory and carries its SRID, including empty polygons.
+   * User data is not copied.
+   * <p>
    * This is a convenient way to change the <tt>CoordinateSequence</tt>
    * used to represent a geometry, or to change the 
    * factory used for a geometry.

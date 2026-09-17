@@ -34,8 +34,11 @@ public final class GeometryCopier {
 
   /**
    * Copies a geometry using a target factory.
-   * Coordinate sequences are copied using the target factory's sequence factory.
-   * User data is not copied.
+   * Empty collection members, polygon shells and holes are retained.
+   * Coordinate sequences, including empty ones, are copied using the target
+   * factory's sequence factory. Every copied component is a new geometry
+   * created by the target factory and carries its SRID, including empty polygons.
+   * User data is not copied and the source geometry is not modified.
    *
    * @param source the geometry to copy
    * @param targetFactory the factory for the copied geometry

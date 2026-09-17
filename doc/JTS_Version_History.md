@@ -54,7 +54,7 @@ Distributions for older JTS versions can be obtained at the
 * Fix `OffsetCurve` `simplifyFactor` parameter handling (#1151)
 * Fix `CoordinateArrays.hasRepeatedOrInvalidPoints` to check first point (#1157)
 * Fix `GeometryFactory.create` to deep-copy polygonal geometry (#1158)
-* Fix `GeometryFactory.createGeometry` to preserve empty components and polygon holes
+* Fix `GeometryFactory.createGeometry` to preserve empty collection members, polygon holes and empty-shell layouts. Copies, including empty polygons, use new geometry objects with the target factory and SRID ([jiayuasu/jts#10](https://github.com/jiayuasu/jts/pull/10)).
 * Add buffer artifact removal heuristic for single-element inputs (#1161)
 * Fix `BufferOp` to handle geometries with all-invalid coordinate lists (#1165)
 * Fix CoordinateList.clone() to copy correctly (#1168)

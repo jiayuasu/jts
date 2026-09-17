@@ -65,6 +65,36 @@ public class IsolatedGeometryCopierTest extends TestCase {
     assertEquals("source metadata", source.getUserData());
   }
 
+  public void testAllEmptyMultipartGeometriesKeepMembers() throws ParseException {
+    for (String wkt : new String[] {
+        "MULTIPOINT (EMPTY, EMPTY)",
+        "MULTILINESTRING (EMPTY, EMPTY)",
+        "MULTIPOLYGON (EMPTY, EMPTY)"
+    }) {
+      Geometry source = new WKTReader(sourceFactory).read(wkt);
+      Geometry copy = GeometryCopier.copy(source, targetFactory);
+
+      assertTrue(copy.isEmpty());
+      assertEquals(2, copy.getNumGeometries());
+      assertCopy(source, copy);
+    }
+  }
+
+  public void testEmptyPolygonIsCopiedIntoTargetFactory() {
+    Polygon source = sourceFactory.createPolygon();
+    source.setUserData("source metadata");
+
+    Polygon copy = (Polygon) GeometryCopier.copy(source, targetFactory);
+
+    assertTrue(copy.isEmpty());
+    assertNotSame(source, copy);
+    assertSame(targetFactory, copy.getFactory());
+    assertEquals(3857, copy.getSRID());
+    assertEquals(4326, source.getSRID());
+    assertEquals("source metadata", source.getUserData());
+    assertNull(copy.getUserData());
+  }
+
   public void testEmptyShellsAndHolesKeepPackedLayouts() {
     for (int dimension : new int[] {3, 4}) {
       Polygon source = sourceFactory.createPolygon(ring(dimension, true), new LinearRing[] {
