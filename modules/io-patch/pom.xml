@@ -50,6 +50,13 @@
                                          includes="*.java"
                                          token="package org.locationtech.jts.io;"
                                          value="package org.datasyslab.jts.io;${line.separator}${line.separator}import org.locationtech.jts.io.*;"/>
+                                <mkdir dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"/>
+                                <copy file="${project.basedir}/../core/src/main/java/org/locationtech/jts/geom/util/GeometryCopier.java"
+                                      todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"/>
+                                <replace dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"
+                                         includes="GeometryCopier.java"
+                                         token="package org.locationtech.jts.geom.util;"
+                                         value="package org.datasyslab.jts.geom.util;"/>
                             </target>
                         </configuration>
                         <goals>
