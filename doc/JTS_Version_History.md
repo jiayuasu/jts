@@ -54,6 +54,7 @@ Distributions for older JTS versions can be obtained at the
 * Fix `OffsetCurve` `simplifyFactor` parameter handling (#1151)
 * Fix `CoordinateArrays.hasRepeatedOrInvalidPoints` to check first point (#1157)
 * Fix `GeometryFactory.create` to deep-copy polygonal geometry (#1158)
+* Fix `GeometryFactory.createGeometry` to preserve empty components and polygon holes
 * Add buffer artifact removal heuristic for single-element inputs (#1161)
 * Fix `BufferOp` to handle geometries with all-invalid coordinate lists (#1165)
 * Fix CoordinateList.clone() to copy correctly (#1168)

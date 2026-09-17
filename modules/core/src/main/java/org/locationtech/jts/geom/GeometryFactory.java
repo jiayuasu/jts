@@ -16,7 +16,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
-import org.locationtech.jts.geom.util.GeometryEditor;
+import org.locationtech.jts.geom.util.GeometryCopier;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -658,18 +658,7 @@ public class GeometryFactory
    */
   public Geometry createGeometry(Geometry g)
   {
-    GeometryEditor editor = new GeometryEditor(this);
-    return editor.edit(g, new CoordSeqCloneOp(coordinateSequenceFactory));
-  }
-
-  private static class CoordSeqCloneOp extends GeometryEditor.CoordinateSequenceOperation {
-    CoordinateSequenceFactory coordinateSequenceFactory;
-    public CoordSeqCloneOp(CoordinateSequenceFactory coordinateSequenceFactory) {
-      this.coordinateSequenceFactory = coordinateSequenceFactory;
-    }
-    public CoordinateSequence edit(CoordinateSequence coordSeq, Geometry geometry) {
-      return coordinateSequenceFactory.create(coordSeq);
-    }
+    return GeometryCopier.copy(g, this);
   }
 
   /**
