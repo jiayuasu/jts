@@ -14,8 +14,10 @@ package org.locationtech.jts.geom;
 
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
 import org.locationtech.jts.geom.impl.PackedCoordinateSequenceFactory;
+import org.locationtech.jts.geom.util.GeometryCopier;
 import org.locationtech.jts.io.ParseException;
 import org.locationtech.jts.io.WKTReader;
+import org.locationtech.jts.util.AssertionFailedException;
 
 import junit.textui.TestRunner;
 import test.jts.GeometryTestCase;
@@ -123,6 +125,147 @@ public class GeometryFactoryTest extends GeometryTestCase {
     Point g2 = (Point) geometryFactory.createGeometry(g);
     assertEquals(2, g2.getCoordinateSequence().getDimension());
 
+  }
+
+  public void testCreateGeometryPreservesEmptyCollectionMembers() {
+    GeometryFactory sourceFactory = new GeometryFactory(
+        PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
+    Point emptyPoint = sourceFactory.createPoint(
+        sourceFactory.getCoordinateSequenceFactory().create(0, 3, 0));
+    LineString emptyLine = sourceFactory.createLineString(
+        sourceFactory.getCoordinateSequenceFactory().create(0, 3, 1));
+    Polygon emptyPolygon = sourceFactory.createPolygon(
+        sourceFactory.createLinearRing(
+            sourceFactory.getCoordinateSequenceFactory().create(0, 4, 1)),
+        new LinearRing[] {
+            sourceFactory.createLinearRing(
+                sourceFactory.getCoordinateSequenceFactory().create(0, 3, 0))
+        });
+    MultiPoint points = sourceFactory.createMultiPoint(new Point[] {
+        sourceFactory.createPoint(new Coordinate(1, 2)), emptyPoint
+    });
+    MultiLineString lines = sourceFactory.createMultiLineString(new LineString[] {
+        sourceFactory.createLineString(new Coordinate[] {
+            new Coordinate(1, 2), new Coordinate(3, 4)
+        }), emptyLine
+    });
+    MultiPolygon polygons = sourceFactory.createMultiPolygon(new Polygon[] {
+        sourceFactory.createPolygon(new Coordinate[] {
+            new Coordinate(0, 0), new Coordinate(0, 1), new Coordinate(1, 1),
+            new Coordinate(0, 0)
+        }), emptyPolygon
+    });
+    GeometryCollection source = sourceFactory.createGeometryCollection(new Geometry[] {
+        points, lines, polygons,
+        sourceFactory.createGeometryCollection(new Geometry[] {emptyPoint, emptyPolygon})
+    });
+
+    GeometryFactory targetFactory = new GeometryFactory(new PrecisionModel(), 3857,
+        CoordinateArraySequenceFactory.instance());
+    GeometryCollection copy = (GeometryCollection) targetFactory.createGeometry(source);
+    assertFactory(copy, targetFactory);
+    assertEquals(4, copy.getNumGeometries());
+    assertEquals(2, copy.getGeometryN(0).getNumGeometries());
+    assertEquals(2, copy.getGeometryN(1).getNumGeometries());
+    assertEquals(2, copy.getGeometryN(2).getNumGeometries());
+    assertEquals(2, copy.getGeometryN(3).getNumGeometries());
+    Polygon copiedEmpty = (Polygon) copy.getGeometryN(2).getGeometryN(1);
+    assertTrue(copiedEmpty.isEmpty());
+    assertEquals(1, copiedEmpty.getNumInteriorRing());
+  }
+
+  public void testCreateGeometryPreservesCoordinateLayoutsAndStorageIndependence() {
+    GeometryFactory sourceFactory = new GeometryFactory(new PrecisionModel(), 4326,
+        PackedCoordinateSequenceFactory.DOUBLE_FACTORY);
+    CoordinateSequence shellSequence = sequence(sourceFactory, 3, 1, new double[][] {
+        {0, 0, 1}, {0, 1, 2}, {1, 1, 3}, {0, 0, 1}
+    });
+    CoordinateSequence holeSequence = sequence(sourceFactory, 4, 1, new double[][] {
+        {0.1, 0.1, 4, 5}, {0.1, 0.2, 4, 6}, {0.2, 0.1, 4, 7}, {0.1, 0.1, 4, 5}
+    });
+    Polygon source = sourceFactory.createPolygon(
+        sourceFactory.createLinearRing(shellSequence),
+        new LinearRing[] {sourceFactory.createLinearRing(holeSequence)});
+    source.setUserData("not copied");
+    GeometryFactory targetFactory = new GeometryFactory(new PrecisionModel(), 3857,
+        CoordinateArraySequenceFactory.instance());
+
+    Polygon copy = (Polygon) GeometryCopier.copy(source, targetFactory);
+    assertSame(targetFactory, copy.getFactory());
+    assertEquals(3857, copy.getSRID());
+    assertNull(copy.getUserData());
+    assertEquals(3, copy.getExteriorRing().getCoordinateSequence().getDimension());
+    assertEquals(1, copy.getExteriorRing().getCoordinateSequence().getMeasures());
+    assertEquals(4, copy.getInteriorRingN(0).getCoordinateSequence().getDimension());
+    assertEquals(1, copy.getInteriorRingN(0).getCoordinateSequence().getMeasures());
+
+    shellSequence.setOrdinate(0, 0, 99);
+    assertEquals(0.0, copy.getExteriorRing().getCoordinateN(0).x);
+    copy.getExteriorRing().getCoordinateSequence().setOrdinate(0, 1, 88);
+    assertEquals(0.0, shellSequence.getOrdinate(0, 1));
+  }
+
+  public void testCreateGeometryNull() {
+    assertNull(geometryFactory.createGeometry(null));
+    assertNull(GeometryCopier.copy(null, geometryFactory));
+  }
+
+  public void testGeometryCopierRejectsUnsupportedGeometrySubclass() {
+    try {
+      GeometryCopier.copy(new UnsupportedGeometry(geometryFactory), geometryFactory);
+      fail("Expected unsupported geometry assertion");
+    } catch (AssertionFailedException expected) {
+      assertTrue(expected.getMessage().contains("Unsupported Geometry class"));
+    }
+  }
+
+  private CoordinateSequence sequence(GeometryFactory factory, int dimension, int measures,
+      double[][] ordinates) {
+    CoordinateSequence sequence = factory.getCoordinateSequenceFactory()
+        .create(ordinates.length, dimension, measures);
+    for (int i = 0; i < ordinates.length; i++) {
+      for (int ordinate = 0; ordinate < ordinates[i].length; ordinate++) {
+        sequence.setOrdinate(i, ordinate, ordinates[i][ordinate]);
+      }
+    }
+    return sequence;
+  }
+
+  private void assertFactory(Geometry geometry, GeometryFactory factory) {
+    assertSame(factory, geometry.getFactory());
+    assertEquals(factory.getSRID(), geometry.getSRID());
+    if (geometry instanceof GeometryCollection) {
+      for (int i = 0; i < geometry.getNumGeometries(); i++) {
+        assertFactory(geometry.getGeometryN(i), factory);
+      }
+    }
+  }
+
+  private static class UnsupportedGeometry extends Geometry {
+    UnsupportedGeometry(GeometryFactory factory) {
+      super(factory);
+    }
+
+    public String getGeometryType() { return "Unsupported"; }
+    protected int getTypeCode() { return -1; }
+    public Coordinate getCoordinate() { return null; }
+    public Coordinate[] getCoordinates() { return new Coordinate[0]; }
+    public int getNumPoints() { return 0; }
+    public boolean isEmpty() { return true; }
+    public int getDimension() { return Dimension.FALSE; }
+    public Geometry getBoundary() { return null; }
+    public int getBoundaryDimension() { return Dimension.FALSE; }
+    protected Geometry reverseInternal() { return this; }
+    public boolean equalsExact(Geometry other, double tolerance) { return other == this; }
+    public void apply(CoordinateFilter filter) { }
+    public void apply(CoordinateSequenceFilter filter) { }
+    public void apply(GeometryFilter filter) { }
+    public void apply(GeometryComponentFilter filter) { }
+    protected Geometry copyInternal() { return new UnsupportedGeometry(getFactory()); }
+    public void normalize() { }
+    protected Envelope computeEnvelopeInternal() { return new Envelope(); }
+    protected int compareToSameClass(Object o) { return 0; }
+    protected int compareToSameClass(Object o, CoordinateSequenceComparator comp) { return 0; }
   }
   
   private void checkCreateGeometryExact(String wkt) 

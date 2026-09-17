@@ -16,7 +16,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
-import org.locationtech.jts.geom.util.GeometryEditor;
+import org.locationtech.jts.geom.util.GeometryCopier;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -645,6 +645,12 @@ public class GeometryFactory
    * is used to copy the {@link CoordinateSequence}s
    * of the input geometry.
    * <p>
+   * Empty collection members and polygon rings are retained. Empty shells
+   * are copied through the coordinate sequence factory, so their coordinate
+   * layout can be retained as well. Every copied component is a new geometry
+   * created by this factory and carries its SRID, including empty polygons.
+   * User data is not copied.
+   * <p>
    * This is a convenient way to change the <tt>CoordinateSequence</tt>
    * used to represent a geometry, or to change the 
    * factory used for a geometry.
@@ -658,18 +664,7 @@ public class GeometryFactory
    */
   public Geometry createGeometry(Geometry g)
   {
-    GeometryEditor editor = new GeometryEditor(this);
-    return editor.edit(g, new CoordSeqCloneOp(coordinateSequenceFactory));
-  }
-
-  private static class CoordSeqCloneOp extends GeometryEditor.CoordinateSequenceOperation {
-    CoordinateSequenceFactory coordinateSequenceFactory;
-    public CoordSeqCloneOp(CoordinateSequenceFactory coordinateSequenceFactory) {
-      this.coordinateSequenceFactory = coordinateSequenceFactory;
-    }
-    public CoordinateSequence edit(CoordinateSequence coordSeq, Geometry geometry) {
-      return coordinateSequenceFactory.create(coordSeq);
-    }
+    return GeometryCopier.copy(g, this);
   }
 
   /**

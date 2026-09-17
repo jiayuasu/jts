@@ -19,7 +19,10 @@ empty-geometry fixes as `org.datasyslab.jts.io.WKBReader` and
 including `WKBWriter`, continue to use `org.locationtech.jts.*` types. Callers must
 import the patched reader or writer explicitly. Version `1.21.0-datasyslab-2`
 also lets callers supply a reader-only coordinate sequence factory independently
-from the geometry factory retained by parsed geometry objects.
+from the geometry factory retained by parsed geometry objects. The unpublished
+version-2 candidate includes `org.datasyslab.jts.geom.util.GeometryCopier.copy`,
+which copies stock JTS geometries into a requested factory while preserving
+nested empty members, polygon holes, and coordinate layouts.
 
 The upstream project documentation follows.
 

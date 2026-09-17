@@ -30,8 +30,8 @@ initial publication. The `-pl modules/core -am` selection below defines this sco
 4. Preserve the upstream license files, source headers, exported packages and
    module names in the full `jts-core` fork. Do not relocate or bundle another
    copy of JTS in that artifact. The narrowly scoped `jts-io-patch` module is the
-   documented exception: it generates three IO classes in a separate namespace
-   while retaining stock JTS geometry and support types.
+   documented exception: it generates selected IO classes and the geometry-copy
+   utility in a separate namespace while retaining stock JTS geometry and support types.
 
 ## Build and test locally
 
@@ -60,14 +60,32 @@ submitted to Central as a complete release.
 artifact for applications that keep `org.locationtech.jts:jts-core:1.20.0` at
 runtime. During `generate-sources`, it selects `WKBReader`, `WKTWriter`, and
 package-private `CheckOrdinatesFilter` from the maintained core sources and
-generates them under `org.datasyslab.jts.io`. Their source headers and references
-to upstream geometry, `Ordinate`, `ParseException`, and stream types are retained.
-It does not contain `WKBWriter` or any geometry classes.
+generates them under `org.datasyslab.jts.io`. It also generates the maintained
+`GeometryCopier` utility under `org.datasyslab.jts.geom.util`. Source headers and
+references to upstream geometry, `Ordinate`, `ParseException`, and stream types
+are retained. The artifact does not contain `WKBWriter` or replacements for stock
+geometry classes.
 
 The isolated IO patch has its own version history. Version
 `1.21.0-datasyslab-1` introduced the three isolated IO classes. Version
-`1.21.0-datasyslab-2` adds independent input coordinate sequence allocation to
-`WKBReader` while retaining the caller's geometry factory on parsed objects.
+`1.21.0-datasyslab-2` is an unpublished candidate. It adds independent input
+coordinate sequence allocation to `WKBReader` while retaining the caller's
+geometry factory on parsed objects. It also adds `GeometryCopier.copy` for
+copies that preserve nested empty members, polygon holes, and coordinate layouts
+while using the requested geometry factory and its coordinate sequence factory.
+
+The structure-preserving copy change is maintained in this fork and tracked in
+[jiayuasu/jts#10](https://github.com/jiayuasu/jts/pull/10). Upstream submission is
+separate from this release; add an upstream reference here if one is submitted.
+The fork base already creates fresh empty polygons, whereas stock JTS 1.20 can
+return the original empty polygon. The isolated helper supplies independent
+copies with the requested factory and SRID for applications using stock JTS.
+
+The Sedona integration is tracked in
+[apache/sedona#3377](https://github.com/apache/sedona/pull/3377). It replaces
+Sedona's custom geometry factory with this helper. Review and test the consumer
+against the local candidate before publication, then publish the approved
+artifact before merging the downstream dependency change.
 
 Build and install only this artifact with JDK 17 (producing Java 8 bytecode):
 
@@ -113,8 +131,10 @@ and [artifact requirements](https://central.sonatype.org/publish/requirements/).
 
 ## Publish
 
-After review, merge the fixes and release configuration into `org.datasyslab`.
-Create and push an annotated tag matching the Maven version, for example
+Batch related fixes into one release and complete their PR reviews before
+publication. Merging a PR and publishing a release each require explicit
+maintainer approval. After approval, merge the fixes and release configuration
+into `org.datasyslab`. Create and push an annotated tag matching the Maven version, for example
 `1.21.0-datasyslab-1`. Build and publish from that exact tag:
 
 ```sh
