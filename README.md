@@ -12,17 +12,46 @@ Use the fork in place of `org.locationtech.jts:jts-core`. Exclude the upstream
 artifact from transitive dependencies so both jars do not supply the same classes.
 
 For applications that must retain stock JTS 1.20 geometry classes, the separate
-`org.datasyslab:jts-io-patch:1.21.0-datasyslab-2` artifact provides the fork's
-empty-geometry fixes as `org.datasyslab.jts.io.WKBReader` and
-`org.datasyslab.jts.io.WKTWriter`. It depends on
-`org.locationtech.jts:jts-core:1.20.0`; geometry objects and the remaining IO API,
-including `WKBWriter`, continue to use `org.locationtech.jts.*` types. Callers must
-import the patched reader or writer explicitly. Version `1.21.0-datasyslab-2`
-also lets callers supply a reader-only coordinate sequence factory independently
-from the geometry factory retained by parsed geometry objects. The unpublished
-version-2 candidate includes `org.datasyslab.jts.geom.util.GeometryCopier.copy`,
-which copies stock JTS geometries into a requested factory while preserving
-nested empty members, polygon holes, and coordinate layouts.
+`org.datasyslab:jts-io-patch` artifact provides the fork's empty-geometry fixes as
+`org.datasyslab.jts.io.WKBReader` and `org.datasyslab.jts.io.WKTWriter`. It depends
+on `org.locationtech.jts:jts-core:1.20.0`; geometry objects and the remaining IO
+API, including `WKBWriter`, continue to use `org.locationtech.jts.*` types.
+Callers must import the patched reader or writer explicitly.
+
+The unpublished `1.21.0-datasyslab-2` candidate also includes
+`org.datasyslab.jts.geom.util.GeometryCopier.copy`, which copies stock JTS
+geometries into a requested factory while preserving nested empty members,
+polygon holes, and coordinate layouts. It drops user data, like the stock
+geometry factory's copy operation.
+
+To retain declared XY, XYZ, XYM and XYZM layouts through copies, opt in when
+reading WKB:
+
+```java
+import org.datasyslab.jts.io.WKBReader;
+import org.locationtech.jts.geom.Geometry;
+
+Geometry geometry = WKBReader.forDeclaredDimensions().read(wkbBytes);
+// Alternatively: WKBReader.forDeclaredDimensions(4326) for a default SRID.
+```
+
+The reader creates `org.datasyslab.jts.geom.impl.DeclaredCoordinateSequence`
+instances even for empty sequences and all-NaN Z or M ordinates. Its ordinary
+JTS geometry factory uses `DeclaredCoordinateSequenceFactory.instance()` to
+retain the declaration when copying sequences. Later array-based and sized
+allocations remain ordinary sequences, so operations producing XY coordinates
+do not gain a declared Z merely because JTS pads them with NaN.
+Other binary codecs can construct declared sequences directly using their
+array or size constructors and inspect the marker type, dimension and measures.
+The existing reader constructors keep their original behavior, including the
+constructor accepting a separate input sequence factory.
+
+This metadata applies to coordinate sequences. A collection with no members
+has no sequence, so its own WKB header's layout cannot be retained. Arbitrary
+JTS operations that allocate new sequences are also not guaranteed to preserve
+a source declaration. Use `GeometryCopier.copy` with the declaration-preserving
+sequence factory when a structure-preserving copy is needed. Stock WKB and WKT
+writers do not interpret the declaration marker.
 
 The upstream project documentation follows.
 

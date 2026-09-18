@@ -24,6 +24,8 @@
                 <includes>
                     <include>LICENSE_EPLv2.txt</include>
                     <include>LICENSE_EDLv1.txt</include>
+                    <include>LICENSE_APACHE2.txt</include>
+                    <include>NOTICE</include>
                 </includes>
             </resource>
         </resources>
@@ -50,6 +52,21 @@
                                          includes="*.java"
                                          token="package org.locationtech.jts.io;"
                                          value="package org.datasyslab.jts.io;${line.separator}${line.separator}import org.locationtech.jts.io.*;"/>
+                                <replace dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io"
+                                         includes="*.java"
+                                         token="org.locationtech.jts.geom.impl.Declared"
+                                         value="org.datasyslab.jts.geom.impl.Declared"/>
+                                <mkdir dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/impl"/>
+                                <copy todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/impl">
+                                    <fileset dir="${project.basedir}/../core/src/main/java/org/locationtech/jts/geom/impl">
+                                        <include name="DeclaredCoordinateSequence.java"/>
+                                        <include name="DeclaredCoordinateSequenceFactory.java"/>
+                                    </fileset>
+                                </copy>
+                                <replace dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/impl"
+                                         includes="*.java"
+                                         token="package org.locationtech.jts.geom.impl;"
+                                         value="package org.datasyslab.jts.geom.impl;${line.separator}${line.separator}import org.locationtech.jts.geom.impl.*;"/>
                                 <mkdir dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"/>
                                 <copy file="${project.basedir}/../core/src/main/java/org/locationtech/jts/geom/util/GeometryCopier.java"
                                       todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"/>
