@@ -81,6 +81,27 @@
                             <goal>run</goal>
                         </goals>
                     </execution>
+                    <execution>
+                        <id>generate-isolated-wkb-writer-tests</id>
+                        <phase>generate-test-sources</phase>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io"/>
+                                <copy file="${project.basedir}/../core/src/test/java/org/locationtech/jts/io/WKBWriterDimensionsTest.java"
+                                      tofile="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io/IsolatedWKBWriterDimensionsTest.java"
+                                      overwrite="true"/>
+                                <replace file="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io/IsolatedWKBWriterDimensionsTest.java"
+                                         token="package org.locationtech.jts.io;"
+                                         value="package org.datasyslab.jts.io;${line.separator}${line.separator}import org.locationtech.jts.io.*;"/>
+                                <replace file="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io/IsolatedWKBWriterDimensionsTest.java"
+                                         token="class WKBWriterDimensionsTest"
+                                         value="class IsolatedWKBWriterDimensionsTest"/>
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
                 </executions>
             </plugin>
             <plugin>
@@ -97,6 +118,18 @@
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/io-patch</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-generated-io-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-test-sources/io-patch</source>
                             </sources>
                         </configuration>
                     </execution>
