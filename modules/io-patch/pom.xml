@@ -44,6 +44,7 @@
                                 <copy todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io">
                                     <fileset dir="${project.basedir}/../core/src/main/java/org/locationtech/jts/io">
                                         <include name="WKBReader.java"/>
+                                        <include name="WKBWriter.java"/>
                                         <include name="WKTWriter.java"/>
                                         <include name="CheckOrdinatesFilter.java"/>
                                     </fileset>

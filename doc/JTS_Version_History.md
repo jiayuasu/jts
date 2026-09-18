@@ -24,6 +24,7 @@ Distributions for older JTS versions can be obtained at the
 ### New Features
 
 * Add opt-in `WKBReader.forDeclaredDimensions` and shared declared coordinate sequences to retain binary layout declarations through copies.
+* Add opt-in WKBWriter preservation of declared dimensions, including empty and all-NaN coordinates.
 * Add `CoverageCleaner` (#1126)
 * Add `MinimumBoundingTriangle` (#1160)
 * Add `DirectedHausdorffDistance` class (#1182)

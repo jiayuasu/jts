@@ -14,8 +14,8 @@ artifact from transitive dependencies so both jars do not supply the same classe
 For applications that must retain stock JTS 1.20 geometry classes, the separate
 `org.datasyslab:jts-io-patch` artifact provides the fork's empty-geometry fixes as
 `org.datasyslab.jts.io.WKBReader` and `org.datasyslab.jts.io.WKTWriter`. It depends
-on `org.locationtech.jts:jts-core:1.20.0`; geometry objects and the remaining IO
-API, including `WKBWriter`, continue to use `org.locationtech.jts.*` types.
+on `org.locationtech.jts:jts-core:1.20.0`; geometry objects and stream interfaces
+continue to use `org.locationtech.jts.*` types.
 Callers must import the patched reader or writer explicitly.
 
 The unpublished `1.21.0-datasyslab-2` candidate also includes
@@ -52,6 +52,26 @@ JTS operations that allocate new sequences are also not guaranteed to preserve
 a source declaration. Use `GeometryCopier.copy` with the declaration-preserving
 sequence factory when a structure-preserving copy is needed. Stock WKB and WKT
 writers do not interpret the declaration marker.
+
+The version-2 candidate also exports `org.datasyslab.jts.io.WKBWriter`.
+To preserve declared dimensions on output, enable its explicit option:
+
+```java
+import org.datasyslab.jts.io.WKBWriter;
+import org.locationtech.jts.io.ByteOrderValues;
+
+WKBWriter writer = new WKBWriter(4, ByteOrderValues.LITTLE_ENDIAN, true);
+writer.setPreserveCoordinateDimensions(true);
+byte[] output = writer.write(geometry);
+```
+
+The configured ordinates remain an upper bound. A 2D writer still omits Z and M;
+a 3D writer can select M with `setOutputOrdinates(Ordinate.createXYM())`.
+Empty and all-NaN declared sequences retain their layouts, while ordinary XY
+coordinates with a padded NaN Z remain XY. Unmarked measured sequences also
+have an unambiguous layout. Collection members keep their individual layouts;
+a collection with no members is written as XY because it has no declaration.
+The option defaults to false and does not change SRID handling or WKT output.
 
 The upstream project documentation follows.
 

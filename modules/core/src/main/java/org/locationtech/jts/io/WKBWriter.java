@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.impl.DeclaredCoordinateSequence;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -216,6 +217,7 @@ public class WKBWriter
   private int outputDimension = 2;
   private int byteOrder;
   private boolean includeSRID = false;
+  private boolean preserveCoordinateDimensions = false;
   private ByteArrayOutputStream byteArrayOS = new ByteArrayOutputStream();
   private OutStream byteArrayOutStream = new OutputStreamOutStream(byteArrayOS);
   // holds output data values
@@ -346,6 +348,27 @@ public class WKBWriter
   }
 
   /**
+   * Selects whether coordinate layout declarations are retained, including for
+   * empty sequences and NaN ordinates. The default is {@code false}.
+   * <p>
+   * In this mode, sequences created by {@link WKBReader#forDeclaredDimensions()}
+   * retain their declared Z and M dimensions. Measured sequences also have an
+   * unambiguous layout. Other sequences contribute only non-NaN Z or M values,
+   * so an ordinary {@code new Coordinate(x, y)} is still written as XY.
+   * <p>
+   * The configured output dimension and {@link #setOutputOrdinates(EnumSet)}
+   * remain an upper bound: requesting 2D still omits Z and M. Collection members
+   * retain their own layouts, and the collection header uses their union.
+   * A collection with no members has no sequence carrying a declaration and is
+   * written as XY. This option does not change SRID handling.
+   *
+   * @param preserve true to retain coordinate layout declarations
+   */
+  public void setPreserveCoordinateDimensions(boolean preserve) {
+    preserveCoordinateDimensions = preserve;
+  }
+
+  /**
    * Gets a bit-pattern defining which ordinates should be
    * @return an ordinate bit-pattern
    * @see #setOutputOrdinates(EnumSet)
@@ -383,7 +406,10 @@ public class WKBWriter
   {
     // evaluate the ordinates actually present in the geometry
     EnumSet<Ordinate> actualOutputOrdinates = this.outputOrdinates;
-    if (!geom.isEmpty()) {
+    if (preserveCoordinateDimensions) {
+      actualOutputOrdinates = EnumSet.of(Ordinate.X, Ordinate.Y);
+      collectOutputOrdinates(geom, actualOutputOrdinates);
+    } else if (!geom.isEmpty()) {
       CheckOrdinatesFilter cof = new CheckOrdinatesFilter(this.outputOrdinates);
       geom.apply(cof);
       actualOutputOrdinates = cof.getOutputOrdinates();
@@ -410,6 +436,43 @@ public class WKBWriter
           (GeometryCollection) geom, actualOutputOrdinates, os);
     else {
       Assert.shouldNeverReachHere("Unknown Geometry type");
+    }
+  }
+
+  // CoordinateSequenceFilter does not visit empty sequences. Visit the geometry
+  // structure explicitly so that empty primitive declarations contribute too.
+  private void collectOutputOrdinates(Geometry geometry, EnumSet<Ordinate> ordinates) {
+    if (ordinates.equals(outputOrdinates)) return;
+    if (geometry instanceof Point) {
+      collectOutputOrdinates(((Point) geometry).getCoordinateSequence(), ordinates);
+    } else if (geometry instanceof LineString) {
+      collectOutputOrdinates(((LineString) geometry).getCoordinateSequence(), ordinates);
+    } else if (geometry instanceof Polygon) {
+      Polygon polygon = (Polygon) geometry;
+      collectOutputOrdinates(polygon.getExteriorRing().getCoordinateSequence(), ordinates);
+      for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+        collectOutputOrdinates(polygon.getInteriorRingN(i).getCoordinateSequence(), ordinates);
+      }
+    } else if (geometry instanceof GeometryCollection) {
+      for (int i = 0; i < geometry.getNumGeometries(); i++) {
+        collectOutputOrdinates(geometry.getGeometryN(i), ordinates);
+      }
+    }
+  }
+
+  private void collectOutputOrdinates(CoordinateSequence sequence, EnumSet<Ordinate> ordinates) {
+    if (sequence instanceof DeclaredCoordinateSequence || sequence.getMeasures() > 0) {
+      if (outputOrdinates.contains(Ordinate.Z) && sequence.hasZ()) ordinates.add(Ordinate.Z);
+      if (outputOrdinates.contains(Ordinate.M) && sequence.hasM()) ordinates.add(Ordinate.M);
+      return;
+    }
+    for (int i = 0; i < sequence.size() && !ordinates.equals(outputOrdinates); i++) {
+      if (outputOrdinates.contains(Ordinate.Z) && !Double.isNaN(sequence.getZ(i))) {
+        ordinates.add(Ordinate.Z);
+      }
+      if (outputOrdinates.contains(Ordinate.M) && !Double.isNaN(sequence.getM(i))) {
+        ordinates.add(Ordinate.M);
+      }
     }
   }
 
