@@ -26,6 +26,7 @@ import org.locationtech.jts.geom.MultiPoint;
 import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
+import org.locationtech.jts.geom.impl.DeclaredCoordinateSequence;
 import org.locationtech.jts.util.Assert;
 
 /**
@@ -216,6 +217,7 @@ public class WKBWriter
   private int outputDimension = 2;
   private int byteOrder;
   private boolean includeSRID = false;
+  private boolean preserveCoordinateDimensions = false;
   private ByteArrayOutputStream byteArrayOS = new ByteArrayOutputStream();
   private OutStream byteArrayOutStream = new OutputStreamOutStream(byteArrayOS);
   // holds output data values
@@ -346,6 +348,30 @@ public class WKBWriter
   }
 
   /**
+   * Selects whether coordinate layout declarations are retained, including for
+   * empty sequences and NaN ordinates. The default is {@code false}.
+   * <p>
+   * In this mode, sequences created by {@link WKBReader#forDeclaredDimensions()}
+   * retain their declared Z and M dimensions. Measured sequences also have an
+   * unambiguous layout. Other sequences contribute only non-NaN Z values,
+   * so an ordinary {@code new Coordinate(x, y)} is still written as XY.
+   * <p>
+   * The configured output dimension and {@link #setOutputOrdinates(EnumSet)}
+   * remain an upper bound: requesting 2D still omits Z and M. MultiPoint,
+   * MultiLineString and MultiPolygon members use the union of their layouts,
+   * padding absent ordinates with NaN. GeometryCollection members retain their
+   * own layouts, and its header uses their union. Mixed-layout GeometryCollections
+   * are supported by JTS, but may be rejected by consumers such as PostGIS.
+   * A collection with no members has no sequence carrying a declaration and is
+   * written as XY. This option does not change SRID handling.
+   *
+   * @param preserve true to retain coordinate layout declarations
+   */
+  public void setPreserveCoordinateDimensions(boolean preserve) {
+    preserveCoordinateDimensions = preserve;
+  }
+
+  /**
    * Gets a bit-pattern defining which ordinates should be
    * @return an ordinate bit-pattern
    * @see #setOutputOrdinates(EnumSet)
@@ -383,12 +409,21 @@ public class WKBWriter
   {
     // evaluate the ordinates actually present in the geometry
     EnumSet<Ordinate> actualOutputOrdinates = this.outputOrdinates;
-    if (!geom.isEmpty()) {
+    if (preserveCoordinateDimensions) {
+      actualOutputOrdinates = EnumSet.of(Ordinate.X, Ordinate.Y);
+      collectOutputOrdinates(geom, actualOutputOrdinates);
+    } else if (!geom.isEmpty()) {
       CheckOrdinatesFilter cof = new CheckOrdinatesFilter(this.outputOrdinates);
       geom.apply(cof);
       actualOutputOrdinates = cof.getOutputOrdinates();
     }
 
+    write(geom, actualOutputOrdinates, os);
+  }
+
+  private void write(Geometry geom, EnumSet<Ordinate> actualOutputOrdinates, OutStream os)
+      throws IOException
+  {
     if (geom instanceof Point)
       writePoint((Point) geom, actualOutputOrdinates, os);
     // LinearRings will be written as LineStrings
@@ -410,6 +445,43 @@ public class WKBWriter
           (GeometryCollection) geom, actualOutputOrdinates, os);
     else {
       Assert.shouldNeverReachHere("Unknown Geometry type");
+    }
+  }
+
+  // CoordinateSequenceFilter does not visit empty sequences. Visit the geometry
+  // structure explicitly so that empty primitive declarations contribute too.
+  private void collectOutputOrdinates(Geometry geometry, EnumSet<Ordinate> ordinates) {
+    if (ordinates.equals(outputOrdinates)) return;
+    if (geometry instanceof Point) {
+      collectOutputOrdinates(((Point) geometry).getCoordinateSequence(), ordinates);
+    } else if (geometry instanceof LineString) {
+      collectOutputOrdinates(((LineString) geometry).getCoordinateSequence(), ordinates);
+    } else if (geometry instanceof Polygon) {
+      Polygon polygon = (Polygon) geometry;
+      collectOutputOrdinates(polygon.getExteriorRing().getCoordinateSequence(), ordinates);
+      for (int i = 0; i < polygon.getNumInteriorRing(); i++) {
+        collectOutputOrdinates(polygon.getInteriorRingN(i).getCoordinateSequence(), ordinates);
+      }
+    } else if (geometry instanceof GeometryCollection) {
+      for (int i = 0; i < geometry.getNumGeometries(); i++) {
+        collectOutputOrdinates(geometry.getGeometryN(i), ordinates);
+      }
+    }
+  }
+
+  private void collectOutputOrdinates(CoordinateSequence sequence, EnumSet<Ordinate> ordinates) {
+    if (sequence instanceof DeclaredCoordinateSequence || sequence.getMeasures() > 0) {
+      if (outputOrdinates.contains(Ordinate.Z) && sequence.hasZ()) ordinates.add(Ordinate.Z);
+      if (outputOrdinates.contains(Ordinate.M) && sequence.hasM()) ordinates.add(Ordinate.M);
+      return;
+    }
+    if (!sequence.hasZ() || !outputOrdinates.contains(Ordinate.Z)
+        || ordinates.contains(Ordinate.Z)) return;
+    for (int i = 0; i < sequence.size(); i++) {
+      if (!Double.isNaN(sequence.getZ(i))) {
+        ordinates.add(Ordinate.Z);
+        return;
+      }
     }
   }
 
@@ -459,7 +531,12 @@ public class WKBWriter
     boolean originalIncludeSRID = this.includeSRID;
     this.includeSRID = false;
     for (int i = 0; i < gc.getNumGeometries(); i++) {
-      write(gc.getGeometryN(i), os);
+      if (preserveCoordinateDimensions && geometryType != WKBConstants.wkbGeometryCollection) {
+        // Homogeneous multipart values share one layout, as polygon rings do.
+        write(gc.getGeometryN(i), outputOrdinates, os);
+      } else {
+        write(gc.getGeometryN(i), os);
+      }
     }
     this.includeSRID = originalIncludeSRID;
   }

@@ -15,6 +15,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 import junit.framework.TestCase;
+import org.datasyslab.jts.geom.impl.DeclaredCoordinateSequence;
+import org.datasyslab.jts.geom.impl.DeclaredCoordinateSequenceFactory;
+import org.datasyslab.jts.geom.util.GeometryCopier;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.Geometry;
@@ -132,6 +135,70 @@ public class IsolatedIoTest extends TestCase {
     assertEquals(2, line.getNumPoints());
     assertEquals(1.3, line.getCoordinateN(0).x);
     assertEquals(2.2, line.getCoordinateN(0).y);
+  }
+
+  public void testDeclaredReaderUsesIsolatedSequencesWithStockGeometryTypes() throws Exception {
+    int[][] layouts = {{2, 0, 0}, {3, 0, 0x80000000}, {3, 1, 0x40000000}, {4, 1, 0xc0000000}};
+    WKBReader reader = WKBReader.forDeclaredDimensions(4326);
+    for (int[] layout : layouts) {
+      for (int type : new int[] {1, 2, 3}) {
+        Geometry original = reader.read(emptyWkb(type, layout[2], layout[0]));
+        assertEquals(4326, original.getSRID());
+        assertSame(GeometryFactory.class, original.getFactory().getClass());
+        assertSame(DeclaredCoordinateSequenceFactory.instance(),
+            original.getFactory().getCoordinateSequenceFactory());
+        for (Geometry geometry : new Geometry[] {original, original.copy(), original.reverse(),
+            GeometryCopier.copy(original, original.getFactory())}) {
+          CoordinateSequence sequence = sequence(geometry);
+          assertEquals("org.datasyslab.jts.geom.impl.DeclaredCoordinateSequence",
+              sequence.getClass().getName());
+          assertEquals(layout[0], sequence.getDimension());
+          assertEquals(layout[1], sequence.getMeasures());
+        }
+      }
+    }
+    assertSame(Geometry.class, WKBReader.forDeclaredDimensions().getClass()
+        .getMethod("read", byte[].class).getReturnType());
+  }
+
+  public void testIsolatedFactoryKeepsOrdinaryAllocationsUndeclared() throws ParseException {
+    Geometry geometry = WKBReader.forDeclaredDimensions().read(emptyWkb(1, 0x80000000, 3));
+    GeometryFactory factory = geometry.getFactory();
+    assertFalse(factory.getCoordinateSequenceFactory().create(2, 3)
+        instanceof DeclaredCoordinateSequence);
+    assertFalse(factory.getCoordinateSequenceFactory().create(2, 3, 0)
+        instanceof DeclaredCoordinateSequence);
+    Point point = (Point) factory.createMultiPointFromCoords(
+        new Coordinate[] {new Coordinate(1, 2)}).getGeometryN(0);
+    assertFalse(point.getCoordinateSequence() instanceof DeclaredCoordinateSequence);
+    assertTrue(Double.isNaN(point.getCoordinateSequence().getZ(0)));
+    DeclaredCoordinateSequence declared = new DeclaredCoordinateSequence(
+        new Coordinate[] {new Coordinate(1, 2)}, 3, 0);
+    assertTrue(factory.getCoordinateSequenceFactory().create(declared)
+        instanceof DeclaredCoordinateSequence);
+    assertFalse(sequence(new WKBReader().read(emptyWkb(1, 0x80000000, 3)))
+        instanceof DeclaredCoordinateSequence);
+  }
+
+  public void testIsolatedReaderRepairsMeasuredRingUsingStockJts() throws ParseException {
+    for (int dimension : new int[] {3, 4}) {
+      ByteBuffer bytes = ByteBuffer.allocate(13 + 3 * dimension * 8).order(ByteOrder.LITTLE_ENDIAN);
+      bytes.put((byte) 1).putInt(dimension == 3 ? 2003 : 3003).putInt(1).putInt(3);
+      for (int i = 0; i < 3; i++) {
+        bytes.putDouble(i).putDouble(i + 1);
+        if (dimension == 4) bytes.putDouble(100 + i);
+        bytes.putDouble(200 + i);
+      }
+      CoordinateSequence repaired = sequence(WKBReader.forDeclaredDimensions().read(bytes.array()));
+      assertTrue(repaired instanceof DeclaredCoordinateSequence);
+      assertEquals(dimension, repaired.getDimension());
+      assertEquals(1, repaired.getMeasures());
+      assertEquals(4, repaired.size());
+      for (int i = 0; i < 4; i++) {
+        assertEquals(200.0 + i % 3, repaired.getM(i));
+        if (dimension == 4) assertEquals(100.0 + i % 3, repaired.getZ(i));
+      }
+    }
   }
 
   private void checkEmpty(int type, int typeFlags, int dimension, int measures)

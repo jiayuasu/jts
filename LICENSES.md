@@ -19,3 +19,9 @@ JTS includes some code from the GeoTools project.  This code has been licensed t
 [2] https://www.osgeo.org/sites/osgeo.org/files/Page/osgeo-bsd-license.txt
 [3] https://github.com/geotools/geotools/wiki/JTS-ORA-Contribution
 [4] https://github.com/geotools/geotools/wiki/JTS-Shapefile-Contribution
+
+### Apache Sedona
+
+`DeclaredCoordinateSequence` and `DeclaredCoordinateSequenceFactory` were adapted
+from Apache Sedona and are licensed under the [Apache License 2.0](LICENSE_APACHE2.txt).
+Their source files retain the Apache license notice. See [NOTICE](NOTICE) for attribution.
