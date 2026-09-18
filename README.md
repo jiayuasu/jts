@@ -69,8 +69,11 @@ The configured ordinates remain an upper bound. A 2D writer still omits Z and M;
 a 3D writer can select M with `setOutputOrdinates(Ordinate.createXYM())`.
 Empty and all-NaN declared sequences retain their layouts, while ordinary XY
 coordinates with a padded NaN Z remain XY. Unmarked measured sequences also
-have an unambiguous layout. Collection members keep their individual layouts;
-a collection with no members is written as XY because it has no declaration.
+have an unambiguous layout. MultiPoint, MultiLineString and MultiPolygon use
+one shared layout for every member, padding missing ordinates with NaN.
+GeometryCollection members keep their individual layouts; consumers such as
+PostGIS may reject a GeometryCollection containing mixed layouts. A collection
+with no members is written as XY because it has no declaration.
 The option defaults to false and does not change SRID handling or WKT output.
 
 The upstream project documentation follows.

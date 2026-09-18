@@ -353,12 +353,15 @@ public class WKBWriter
    * <p>
    * In this mode, sequences created by {@link WKBReader#forDeclaredDimensions()}
    * retain their declared Z and M dimensions. Measured sequences also have an
-   * unambiguous layout. Other sequences contribute only non-NaN Z or M values,
+   * unambiguous layout. Other sequences contribute only non-NaN Z values,
    * so an ordinary {@code new Coordinate(x, y)} is still written as XY.
    * <p>
    * The configured output dimension and {@link #setOutputOrdinates(EnumSet)}
-   * remain an upper bound: requesting 2D still omits Z and M. Collection members
-   * retain their own layouts, and the collection header uses their union.
+   * remain an upper bound: requesting 2D still omits Z and M. MultiPoint,
+   * MultiLineString and MultiPolygon members use the union of their layouts,
+   * padding absent ordinates with NaN. GeometryCollection members retain their
+   * own layouts, and its header uses their union. Mixed-layout GeometryCollections
+   * are supported by JTS, but may be rejected by consumers such as PostGIS.
    * A collection with no members has no sequence carrying a declaration and is
    * written as XY. This option does not change SRID handling.
    *
@@ -415,6 +418,12 @@ public class WKBWriter
       actualOutputOrdinates = cof.getOutputOrdinates();
     }
 
+    write(geom, actualOutputOrdinates, os);
+  }
+
+  private void write(Geometry geom, EnumSet<Ordinate> actualOutputOrdinates, OutStream os)
+      throws IOException
+  {
     if (geom instanceof Point)
       writePoint((Point) geom, actualOutputOrdinates, os);
     // LinearRings will be written as LineStrings
@@ -466,12 +475,12 @@ public class WKBWriter
       if (outputOrdinates.contains(Ordinate.M) && sequence.hasM()) ordinates.add(Ordinate.M);
       return;
     }
-    for (int i = 0; i < sequence.size() && !ordinates.equals(outputOrdinates); i++) {
-      if (outputOrdinates.contains(Ordinate.Z) && !Double.isNaN(sequence.getZ(i))) {
+    if (!sequence.hasZ() || !outputOrdinates.contains(Ordinate.Z)
+        || ordinates.contains(Ordinate.Z)) return;
+    for (int i = 0; i < sequence.size(); i++) {
+      if (!Double.isNaN(sequence.getZ(i))) {
         ordinates.add(Ordinate.Z);
-      }
-      if (outputOrdinates.contains(Ordinate.M) && !Double.isNaN(sequence.getM(i))) {
-        ordinates.add(Ordinate.M);
+        return;
       }
     }
   }
@@ -522,7 +531,12 @@ public class WKBWriter
     boolean originalIncludeSRID = this.includeSRID;
     this.includeSRID = false;
     for (int i = 0; i < gc.getNumGeometries(); i++) {
-      write(gc.getGeometryN(i), os);
+      if (preserveCoordinateDimensions && geometryType != WKBConstants.wkbGeometryCollection) {
+        // Homogeneous multipart values share one layout, as polygon rings do.
+        write(gc.getGeometryN(i), outputOrdinates, os);
+      } else {
+        write(gc.getGeometryN(i), os);
+      }
     }
     this.includeSRID = originalIncludeSRID;
   }

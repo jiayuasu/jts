@@ -126,6 +126,133 @@ public class WKBWriterDimensionsTest extends TestCase {
     assertEquals(1, sequence(roundTrip.getGeometryN(1).getGeometryN(1)).getMeasures());
   }
 
+  public void testMultiPointUsesOneLayoutForEveryMember() throws Exception {
+    checkMultipart(1);
+  }
+
+  public void testMultiLineStringUsesOneLayoutForEveryMember() throws Exception {
+    checkMultipart(2);
+  }
+
+  public void testMultiPolygonUsesOneLayoutForEveryMember() throws Exception {
+    checkMultipart(3);
+  }
+
+  public void testNestedMultipartDoesNotPromoteCollectionSibling() throws Exception {
+    GeometryFactory factory = new GeometryFactory();
+    Point z = (Point) WKBReader.forDeclaredDimensions().read(primitive(1, 1, true));
+    Point xy = factory.createPoint(new Coordinate(1, 2));
+    Geometry collection = factory.createGeometryCollection(new Geometry[] {
+        factory.createMultiPoint(new Point[] {z, xy}), xy});
+    Geometry output = WKBReader.forDeclaredDimensions().read(
+        writer(4, ByteOrderValues.LITTLE_ENDIAN, false).write(collection));
+    assertEquals(3, sequence(output.getGeometryN(0).getGeometryN(1)).getDimension());
+    assertEquals(2, sequence(output.getGeometryN(1)).getDimension());
+  }
+
+  public void testPolygonUnionsMeasuredShellAndZOnlyHole() throws Exception {
+    Polygon shell = (Polygon) WKBReader.forDeclaredDimensions().read(primitive(3, 2, false));
+    Polygon hole = (Polygon) WKBReader.forDeclaredDimensions().read(primitive(3, 1, false));
+    CoordinateSequence shellSequence = sequence(shell);
+    CoordinateSequence holeSequence = sequence(hole);
+    double[][] shellXY = {{0, 0}, {10, 0}, {0, 10}, {0, 0}};
+    double[][] holeXY = {{1, 1}, {2, 1}, {1, 2}, {1, 1}};
+    for (int i = 0; i < 4; i++) {
+      shellSequence.setOrdinate(i, 0, shellXY[i][0]);
+      shellSequence.setOrdinate(i, 1, shellXY[i][1]);
+      shellSequence.setOrdinate(i, 2, 11);
+      holeSequence.setOrdinate(i, 0, holeXY[i][0]);
+      holeSequence.setOrdinate(i, 1, holeXY[i][1]);
+      holeSequence.setOrdinate(i, 2, 6);
+    }
+    Polygon polygon = new GeometryFactory().createPolygon(shell.getExteriorRing(),
+        new LinearRing[] {hole.getExteriorRing()});
+    for (int endian : new int[] {ByteOrderValues.BIG_ENDIAN, ByteOrderValues.LITTLE_ENDIAN}) {
+      byte[] bytes = writer(4, endian, false).write(polygon);
+      assertEquals(0xc0000003, type(bytes));
+      assertEquals(273, bytes.length);
+      Polygon output = (Polygon) WKBReader.forDeclaredDimensions().read(bytes);
+      CoordinateSequence outer = sequence(output);
+      CoordinateSequence inner = output.getInteriorRingN(0).getCoordinateSequence();
+      assertEquals(4, outer.getDimension());
+      assertEquals(1, outer.getMeasures());
+      assertEquals(4, inner.getDimension());
+      assertEquals(1, inner.getMeasures());
+      for (int i = 0; i < 4; i++) {
+        assertEquals(shellXY[i][0], outer.getX(i));
+        assertEquals(shellXY[i][1], outer.getY(i));
+        assertTrue(Double.isNaN(outer.getZ(i)));
+        assertEquals(11.0, outer.getM(i));
+        assertEquals(holeXY[i][0], inner.getX(i));
+        assertEquals(holeXY[i][1], inner.getY(i));
+        assertEquals(6.0, inner.getZ(i));
+        assertTrue(Double.isNaN(inner.getM(i)));
+      }
+    }
+  }
+
+  private void checkMultipart(int primitiveType) throws Exception {
+    GeometryFactory factory = new GeometryFactory();
+    for (boolean emptyZ : new boolean[] {false, true}) {
+      Geometry z = WKBReader.forDeclaredDimensions().read(primitive(primitiveType, 1, emptyZ));
+      Geometry m = WKBReader.forDeclaredDimensions().read(primitive(primitiveType, 2, false));
+      for (int i = 0; i < sequence(z).size(); i++) sequence(z).setOrdinate(i, 2, 6);
+      for (int i = 0; i < sequence(m).size(); i++) sequence(m).setOrdinate(i, 2, 11);
+      Coordinate[] xy = primitiveType == 1 ? new Coordinate[] {new Coordinate(1, 2)}
+          : primitiveType == 2 ? new Coordinate[] {new Coordinate(1, 2), new Coordinate(3, 4)}
+          : new Coordinate[] {new Coordinate(1, 2), new Coordinate(3, 4),
+              new Coordinate(1, 4), new Coordinate(1, 2)};
+      Geometry ordinary = primitiveType == 1 ? factory.createPoint(xy[0])
+          : primitiveType == 2 ? factory.createLineString(xy) : factory.createPolygon(xy);
+      Geometry multipart = primitiveType == 1
+          ? factory.createMultiPoint(new Point[] {(Point) z, (Point) ordinary, (Point) m})
+          : primitiveType == 2
+              ? factory.createMultiLineString(new LineString[] {(LineString) z, (LineString) ordinary, (LineString) m})
+              : factory.createMultiPolygon(new Polygon[] {(Polygon) z, (Polygon) ordinary, (Polygon) m});
+      multipart.setSRID(4326);
+      for (int layout = 0; layout < 4; layout++) {
+        for (int endian : new int[] {ByteOrderValues.BIG_ENDIAN, ByteOrderValues.LITTLE_ENDIAN}) {
+          for (boolean includeSrid : new boolean[] {false, true}) {
+            WKBWriter writer = writer(DIMENSIONS[layout], endian, includeSrid);
+            if (layout == 2) writer.setOutputOrdinates(Ordinate.createXYM());
+            byte[] bytes = writer.write(multipart);
+            assertEquals(primitiveType + 3 | FLAGS[layout] | (includeSrid ? 0x20000000 : 0), type(bytes));
+            ByteBuffer buffer = ByteBuffer.wrap(bytes).order(bytes[0] == 1 ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
+            Geometry output = WKBReader.forDeclaredDimensions().read(bytes);
+            int offset = includeSrid ? 13 : 9;
+            for (int member = 0; member < 3; member++) {
+              assertEquals(primitiveType | FLAGS[layout], buffer.getInt(offset + 1));
+              Geometry component = output.getGeometryN(member);
+              CoordinateSequence seq = sequence(component);
+              assertEquals(DIMENSIONS[layout], seq.getDimension());
+              assertEquals(MEASURES[layout], seq.getMeasures());
+              assertEquals(includeSrid ? 4326 : 0, component.getSRID());
+              assertEquals(member == 0 && emptyZ, component.isEmpty());
+              for (int i = 0; i < seq.size(); i++) {
+                assertEquals(sequence(multipart.getGeometryN(member)).getX(i), seq.getX(i));
+                assertEquals(sequence(multipart.getGeometryN(member)).getY(i), seq.getY(i));
+                if (layout == 1 || layout == 3) {
+                  if (member == 0) assertEquals(6.0, seq.getZ(i));
+                  else assertTrue(Double.isNaN(seq.getZ(i)));
+                }
+                if (layout == 2 || layout == 3) {
+                  if (member == 2) assertEquals(11.0, seq.getM(i));
+                  else assertTrue(Double.isNaN(seq.getM(i)));
+                }
+              }
+              offset += primitiveType == 1 ? 5 + DIMENSIONS[layout] * 8
+                  : primitiveType == 2 ? 9 + seq.size() * DIMENSIONS[layout] * 8
+                  : component.isEmpty() ? 9 : 13 + seq.size() * DIMENSIONS[layout] * 8;
+            }
+            assertEquals(bytes.length, offset);
+          }
+        }
+      }
+      assertEquals(0, sequence(ordinary).getMeasures());
+      assertTrue(Double.isNaN(sequence(ordinary).getZ(0)));
+    }
+  }
+
   public void testEmptyCollectionHasNoDeclaration() {
     byte[] output = writer(4, ByteOrderValues.LITTLE_ENDIAN, false).write(
         new GeometryFactory().createGeometryCollection());
