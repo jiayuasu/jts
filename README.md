@@ -18,7 +18,9 @@ on `org.locationtech.jts:jts-core:1.20.0`; geometry objects and stream interface
 continue to use `org.locationtech.jts.*` types.
 Callers must import the patched reader or writer explicitly.
 
-The unpublished `1.21.0-datasyslab-2` candidate also includes
+The next isolated IO release is `1.21.0-datasyslab-2`; publication is pending
+separate approval. See its [release notes](doc/releases/jts-io-patch-1.21.0-datasyslab-2.md)
+for the included fixes and Sedona validation. This version also includes
 `org.datasyslab.jts.geom.util.GeometryCopier.copy`, which copies stock JTS
 geometries into a requested factory while preserving nested empty members,
 polygon holes, and coordinate layouts. It drops user data, like the stock
@@ -53,7 +55,7 @@ a source declaration. Use `GeometryCopier.copy` with the declaration-preserving
 sequence factory when a structure-preserving copy is needed. Stock WKB and WKT
 writers do not interpret the declaration marker.
 
-The version-2 candidate also exports `org.datasyslab.jts.io.WKBWriter`.
+Version `1.21.0-datasyslab-2` also exports `org.datasyslab.jts.io.WKBWriter`.
 To preserve declared dimensions on output, enable its explicit option:
 
 ```java
