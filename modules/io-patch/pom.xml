@@ -24,6 +24,8 @@
                 <includes>
                     <include>LICENSE_EPLv2.txt</include>
                     <include>LICENSE_EDLv1.txt</include>
+                    <include>LICENSE_APACHE2.txt</include>
+                    <include>NOTICE</include>
                 </includes>
             </resource>
         </resources>
@@ -42,6 +44,7 @@
                                 <copy todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io">
                                     <fileset dir="${project.basedir}/../core/src/main/java/org/locationtech/jts/io">
                                         <include name="WKBReader.java"/>
+                                        <include name="WKBWriter.java"/>
                                         <include name="WKTWriter.java"/>
                                         <include name="CheckOrdinatesFilter.java"/>
                                     </fileset>
@@ -50,6 +53,21 @@
                                          includes="*.java"
                                          token="package org.locationtech.jts.io;"
                                          value="package org.datasyslab.jts.io;${line.separator}${line.separator}import org.locationtech.jts.io.*;"/>
+                                <replace dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/io"
+                                         includes="*.java"
+                                         token="org.locationtech.jts.geom.impl.Declared"
+                                         value="org.datasyslab.jts.geom.impl.Declared"/>
+                                <mkdir dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/impl"/>
+                                <copy todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/impl">
+                                    <fileset dir="${project.basedir}/../core/src/main/java/org/locationtech/jts/geom/impl">
+                                        <include name="DeclaredCoordinateSequence.java"/>
+                                        <include name="DeclaredCoordinateSequenceFactory.java"/>
+                                    </fileset>
+                                </copy>
+                                <replace dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/impl"
+                                         includes="*.java"
+                                         token="package org.locationtech.jts.geom.impl;"
+                                         value="package org.datasyslab.jts.geom.impl;${line.separator}${line.separator}import org.locationtech.jts.geom.impl.*;"/>
                                 <mkdir dir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"/>
                                 <copy file="${project.basedir}/../core/src/main/java/org/locationtech/jts/geom/util/GeometryCopier.java"
                                       todir="${project.build.directory}/generated-sources/io-patch/org/datasyslab/jts/geom/util"/>
@@ -57,6 +75,27 @@
                                          includes="GeometryCopier.java"
                                          token="package org.locationtech.jts.geom.util;"
                                          value="package org.datasyslab.jts.geom.util;"/>
+                            </target>
+                        </configuration>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>generate-isolated-wkb-writer-tests</id>
+                        <phase>generate-test-sources</phase>
+                        <configuration>
+                            <target>
+                                <mkdir dir="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io"/>
+                                <copy file="${project.basedir}/../core/src/test/java/org/locationtech/jts/io/WKBWriterDimensionsTest.java"
+                                      tofile="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io/IsolatedWKBWriterDimensionsTest.java"
+                                      overwrite="true"/>
+                                <replace file="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io/IsolatedWKBWriterDimensionsTest.java"
+                                         token="package org.locationtech.jts.io;"
+                                         value="package org.datasyslab.jts.io;${line.separator}${line.separator}import org.locationtech.jts.io.*;"/>
+                                <replace file="${project.build.directory}/generated-test-sources/io-patch/org/datasyslab/jts/io/IsolatedWKBWriterDimensionsTest.java"
+                                         token="class WKBWriterDimensionsTest"
+                                         value="class IsolatedWKBWriterDimensionsTest"/>
                             </target>
                         </configuration>
                         <goals>
@@ -79,6 +118,18 @@
                         <configuration>
                             <sources>
                                 <source>${project.build.directory}/generated-sources/io-patch</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>add-generated-io-test-sources</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-test-sources/io-patch</source>
                             </sources>
                         </configuration>
                     </execution>

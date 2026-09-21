@@ -14,6 +14,7 @@ package org.locationtech.jts.io;
 import java.io.IOException;
 import java.util.EnumSet;
 
+import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
 import org.locationtech.jts.geom.CoordinateSequences;
@@ -28,6 +29,8 @@ import org.locationtech.jts.geom.MultiPolygon;
 import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
+import org.locationtech.jts.geom.impl.DeclaredCoordinateSequence;
+import org.locationtech.jts.geom.impl.DeclaredCoordinateSequenceFactory;
 
 /**
  * Reads a {@link Geometry}from a byte stream in Well-Known Binary format.
@@ -155,6 +158,58 @@ public class WKBReader
     this.factory = geometryFactory;
     precisionModel = factory.getPrecisionModel();
     csFactory = coordinateSequenceFactory;
+  }
+
+  /**
+   * Creates a reader which retains coordinate layouts declared in WKB headers.
+   *
+   * @return a reader with a default SRID of zero
+   * @see #forDeclaredDimensions(int)
+   */
+  public static WKBReader forDeclaredDimensions() {
+    return forDeclaredDimensions(0);
+  }
+
+  /**
+   * Creates a reader which marks input sequences with their declared XY, XYZ,
+   * XYM or XYZM layout, including empty sequences and all-NaN Z or M values.
+   * The returned geometries use an ordinary {@link GeometryFactory} with a
+   * {@link DeclaredCoordinateSequenceFactory}, which preserves declarations
+   * when copying existing sequences but does not mark later array-based or
+   * sized allocations made by JTS operations.
+   * Collections with no members have no coordinate sequence, so their own
+   * header's layout declaration cannot be retained.
+   * Existing constructors do not enable this behavior.
+   *
+   * @param defaultSrid the geometry factory SRID used when no nonzero WKB SRID applies
+   * @return a reader which retains coordinate layout declarations
+   */
+  public static WKBReader forDeclaredDimensions(int defaultSrid) {
+    GeometryFactory factory = new GeometryFactory(new PrecisionModel(), defaultSrid,
+        DeclaredCoordinateSequenceFactory.instance());
+    return new WKBReader(factory, new InputCoordinateSequenceFactory());
+  }
+
+  private static final class InputCoordinateSequenceFactory implements CoordinateSequenceFactory {
+    @Override
+    public CoordinateSequence create(Coordinate[] coordinates) {
+      return DeclaredCoordinateSequenceFactory.instance().create(coordinates);
+    }
+
+    @Override
+    public CoordinateSequence create(CoordinateSequence sequence) {
+      return DeclaredCoordinateSequenceFactory.instance().create(sequence);
+    }
+
+    @Override
+    public CoordinateSequence create(int size, int dimension) {
+      return create(size, dimension, 0);
+    }
+
+    @Override
+    public CoordinateSequence create(int size, int dimension, int measures) {
+      return new DeclaredCoordinateSequence(size, dimension, measures);
+    }
   }
 
   /**
@@ -436,7 +491,7 @@ public class WKBReader
     CoordinateSequence seq = readCoordinateSequence(size, ordinateFlags);
     if (isStrict) return seq;
     if (seq.size() == 0 || seq.size() >= 2) return seq;
-    return CoordinateSequences.extend(csFactory, seq, 2);
+    return extendCoordinateSequence(seq, 2, seq.size() - 1);
   }
   
   private CoordinateSequence readCoordinateSequenceRing(int size, EnumSet<Ordinate> ordinateFlags) throws IOException, ParseException
@@ -444,7 +499,19 @@ public class WKBReader
     CoordinateSequence seq = readCoordinateSequence(size, ordinateFlags);
     if (isStrict) return seq;
     if (CoordinateSequences.isRing(seq)) return seq;
-    return CoordinateSequences.ensureValidRing(csFactory, seq);
+    return extendCoordinateSequence(seq, Math.max(4, seq.size() + 1), 0);
+  }
+
+  private CoordinateSequence extendCoordinateSequence(CoordinateSequence source,
+      int size, int paddingCoordinate) {
+    // Stock CoordinateSequences repair helpers use the two-argument factory method,
+    // which loses M measures. Keep the layout supplied by the WKB header.
+    CoordinateSequence extended = csFactory.create(size, source.getDimension(), source.getMeasures());
+    CoordinateSequences.copy(source, 0, extended, 0, source.size());
+    for (int i = source.size(); i < size; i++) {
+      CoordinateSequences.copy(source, paddingCoordinate, extended, i, 1);
+    }
+    return extended;
   }
 
   /**

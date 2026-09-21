@@ -58,13 +58,15 @@ submitted to Central as a complete release.
 
 `org.datasyslab:jts-io-patch:1.21.0-datasyslab-2` is an independently built
 artifact for applications that keep `org.locationtech.jts:jts-core:1.20.0` at
-runtime. During `generate-sources`, it selects `WKBReader`, `WKTWriter`, and
-package-private `CheckOrdinatesFilter` from the maintained core sources and
-generates them under `org.datasyslab.jts.io`. It also generates the maintained
-`GeometryCopier` utility under `org.datasyslab.jts.geom.util`. Source headers and
-references to upstream geometry, `Ordinate`, `ParseException`, and stream types
-are retained. The artifact does not contain `WKBWriter` or replacements for stock
-geometry classes.
+runtime. During `generate-sources`, it selects `WKBReader`, `WKBWriter`,
+`WKTWriter`, and package-private `CheckOrdinatesFilter` from the maintained core
+sources and generates them under `org.datasyslab.jts.io`. It also generates
+`GeometryCopier` under `org.datasyslab.jts.geom.util`, and
+`DeclaredCoordinateSequence` and `DeclaredCoordinateSequenceFactory` under
+`org.datasyslab.jts.geom.impl`. Source headers and references to upstream
+geometry, `Ordinate`, `ParseException`, and stream types are retained. The
+artifact does not replace stock geometry classes. It includes the Apache 2.0
+license and attribution for the coordinate sequence helpers adapted from Sedona.
 
 The isolated IO patch has its own version history. Version
 `1.21.0-datasyslab-1` introduced the three isolated IO classes. Version
@@ -73,6 +75,10 @@ coordinate sequence allocation to `WKBReader` while retaining the caller's
 geometry factory on parsed objects. It also adds `GeometryCopier.copy` for
 copies that preserve nested empty members, polygon holes, and coordinate layouts
 while using the requested geometry factory and its coordinate sequence factory.
+`WKBReader.forDeclaredDimensions()` and
+`WKBWriter.setPreserveCoordinateDimensions(true)` opt into layout preservation
+without changing existing reader or writer defaults. Empty collections with no
+members still cannot retain a layout declaration because they have no sequence.
 
 The structure-preserving copy change is maintained in this fork and tracked in
 [jiayuasu/jts#10](https://github.com/jiayuasu/jts/pull/10). Upstream submission is
@@ -87,12 +93,17 @@ Sedona's custom geometry factory with this helper. Review and test the consumer
 against the local candidate before publication, then publish the approved
 artifact before merging the downstream dependency change.
 
-Build and install only this artifact with JDK 17 (producing Java 8 bytecode):
+Build the candidate with JDK 17 (producing Java 8 bytecode). Include the local
+build configuration so the retained Apache source headers are recognized:
 
 ```sh
-mvn -B -f modules/io-patch/pom.xml clean verify
-mvn -B -f modules/io-patch/pom.xml clean install
+mvn -B -pl build-tools,modules/io-patch -am clean verify
+mvn -B -pl build-tools,modules/io-patch -am install
 ```
+
+The install command updates only the local Maven cache, including build parents.
+It does not publish an artifact. Publish only the reviewed IO patch after the
+JTS and Sedona PR reviews and consumer validation are complete.
 
 The binary, source, and Javadoc jars are written to `modules/io-patch/target`.
 Inspect those files and test a consumer with stock JTS 1.20 before release.

@@ -23,6 +23,8 @@ Distributions for older JTS versions can be obtained at the
 
 ### New Features
 
+* Add opt-in `WKBReader.forDeclaredDimensions` and shared declared coordinate sequences to retain binary layout declarations through copies.
+* Add opt-in WKBWriter preservation of declared dimensions, including empty and all-NaN coordinates. Multipart members share one layout with NaN padding ([jiayuasu/jts#12](https://github.com/jiayuasu/jts/pull/12)).
 * Add `CoverageCleaner` (#1126)
 * Add `MinimumBoundingTriangle` (#1160)
 * Add `DirectedHausdorffDistance` class (#1182)
@@ -48,6 +50,7 @@ Distributions for older JTS versions can be obtained at the
 * Add `BufferOp` hole erosion heuristic for rings (#1117)
 * Fix `BufferOp` element erosion for negative distance (#1119)
 * Fix writing XYM geometries as WKB (#1092)
+* Preserve M measures when `WKBReader` repairs short lines and unclosed rings.
 * Fix `WKTWriter` to separate Z/M markers from `EMPTY` for nested empty geometries ([jiayuasu/jts#7](https://github.com/jiayuasu/jts/pull/7))
 * Fix `DepthSegment` comparator (#1132)
 * Fix `BoundaryChainNoder` to split chains at self-touch nodes (also fixes `CoverageUnion`) (#1134)

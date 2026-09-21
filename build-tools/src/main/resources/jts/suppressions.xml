@@ -6,5 +6,7 @@
 
 <suppressions>
    <suppress files="Varint.java" checks="Header"/>
+   <!-- These Apache Sedona adaptations retain their Apache 2.0 source headers. -->
+   <suppress files="DeclaredCoordinateSequence(Factory)?\.java" checks="Header"/>
    <suppress files="[\\/]test[\\/]" checks="[a-zA-Z0-9]*"/>
 </suppressions>
