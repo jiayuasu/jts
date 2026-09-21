@@ -70,9 +70,7 @@ license and attribution for the coordinate sequence helpers adapted from Sedona.
 
 The isolated IO patch has its own version history. Version
 `1.21.0-datasyslab-1` introduced the three isolated IO classes. Version
-`1.21.0-datasyslab-2` is the next release, pending publication approval.
-Its [release notes](doc/releases/jts-io-patch-1.21.0-datasyslab-2.md) record the
-included fixes, compatibility limits, and snapshot validation. It adds independent input
+`1.21.0-datasyslab-2` is an unpublished candidate. It adds independent input
 coordinate sequence allocation to `WKBReader` while retaining the caller's
 geometry factory on parsed objects. It also adds `GeometryCopier.copy` for
 copies that preserve nested empty members, polygon holes, and coordinate layouts
@@ -89,16 +87,11 @@ The fork base already creates fresh empty polygons, whereas stock JTS 1.20 can
 return the original empty polygon. The isolated helper supplies independent
 copies with the requested factory and SRID for applications using stock JTS.
 
-The Sedona integration is split across
-[apache/sedona#3377](https://github.com/apache/sedona/pull/3377) (geometry copies),
-[apache/sedona#3374](https://github.com/apache/sedona/pull/3374) (serialization),
-[apache/sedona#3378](https://github.com/apache/sedona/pull/3378) (WKB readers), and
-[apache/sedona#3381](https://github.com/apache/sedona/pull/3381) (WKB output).
-The combined stack was tested with `1.21.0-datasyslab-2-SNAPSHOT` on stock
-PySpark 3.5.0 and 4.1.1, including two executor JVMs for Spark 4.1. The release
-notes identify the tested commits and scope. Complete the remaining PR reviews
-before publication, then publish the approved artifact before merging downstream
-dependency changes.
+The Sedona integration is tracked in
+[apache/sedona#3377](https://github.com/apache/sedona/pull/3377). It replaces
+Sedona's custom geometry factory with this helper. Review and test the consumer
+against the local candidate before publication, then publish the approved
+artifact before merging the downstream dependency change.
 
 Build the candidate with JDK 17 (producing Java 8 bytecode). Include the local
 build configuration so the retained Apache source headers are recognized:
@@ -114,17 +107,6 @@ JTS and Sedona PR reviews and consumer validation are complete.
 
 The binary, source, and Javadoc jars are written to `modules/io-patch/target`.
 Inspect those files and test a consumer with stock JTS 1.20 before release.
-
-After configuring signing, build and sign only the IO module locally:
-
-```sh
-mvn -B -f modules/io-patch/pom.xml -Drelease clean verify
-```
-
-This command signs the POM and three jars without uploading them. Verify all four
-signatures with `gpg --verify`. Compare the release jar's isolated class files
-with the tested snapshot, or rerun consumer validation if they differ. Changing
-the version changes Maven metadata, so complete jar hashes need not match.
 
 ## Configure signing and Central access
 
@@ -184,14 +166,8 @@ The isolated IO patch has a separate publication scope. Its parent POMs remain
 at the immutable `1.21.0-datasyslab-1` version while the child module explicitly
 uses `1.21.0-datasyslab-2`, so do not deploy the reactor or use `-am`. Create the
 distinct annotated tag `jts-io-patch-1.21.0-datasyslab-2` from the reviewed IO
-patch commit; do not move or replace the existing full-core tag. Before tagging,
-check local and remote tags and confirm that the Maven version is not already
-published. An old local candidate tag may point to an earlier commit; do not push
-it without checking its target. Resolve any local-only candidate tag as part of
-the approved release, and never retarget a published release tag.
-
-After local verification and explicit release approval, deploy only the module
-from the approved tag:
+patch commit; do not move or replace the existing full-core tag. After local
+verification and explicit release approval, deploy only the module from that tag:
 
 ```sh
 mvn -B -f modules/io-patch/pom.xml -Drelease clean deploy
