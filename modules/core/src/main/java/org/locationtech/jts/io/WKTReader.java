@@ -24,6 +24,7 @@ import java.util.Locale;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.CoordinateSequence;
 import org.locationtech.jts.geom.CoordinateSequenceFactory;
+import org.locationtech.jts.geom.CoordinateSequences;
 import org.locationtech.jts.geom.CoordinateXY;
 import org.locationtech.jts.geom.CoordinateXYM;
 import org.locationtech.jts.geom.CoordinateXYZM;
@@ -39,6 +40,8 @@ import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.geom.PrecisionModel;
 import org.locationtech.jts.geom.impl.CoordinateArraySequenceFactory;
+import org.locationtech.jts.geom.impl.DeclaredCoordinateSequence;
+import org.locationtech.jts.geom.impl.DeclaredCoordinateSequenceFactory;
 import org.locationtech.jts.util.Assert;
 import org.locationtech.jts.util.AssertionFailedException;
 
@@ -201,6 +204,11 @@ public class WKTReader
   private boolean isFixStructure = false;
 
   /**
+   * Flag indicating that sequences tagged Z, M or ZM are marked with that layout.
+   */
+  private boolean isDeclaringDimensions = false;
+
+  /**
    * Creates a reader that creates objects using the default {@link GeometryFactory}.
    */
   public WKTReader() {
@@ -217,6 +225,37 @@ public class WKTReader
     this.geometryFactory = geometryFactory;
     this.csFactory = geometryFactory.getCoordinateSequenceFactory();
     this.precisionModel = geometryFactory.getPrecisionModel();
+  }
+
+  /**
+   * Creates a reader which retains the coordinate layouts declared by Z, M and ZM tags.
+   *
+   * @return a reader with a default SRID of zero
+   * @see #forDeclaredDimensions(int)
+   */
+  public static WKTReader forDeclaredDimensions() {
+    return forDeclaredDimensions(0);
+  }
+
+  /**
+   * Creates a reader which marks the sequences of geometries tagged Z, M or ZM
+   * with that XYZ, XYM or XYZM layout, including empty sequences and all-NaN Z
+   * or M values. Untagged coordinates are read as by an ordinary reader,
+   * so 3-ordinate coordinates in the old JTS syntax keep their Z values.
+   * The returned geometries use an ordinary {@link GeometryFactory} with a
+   * {@link DeclaredCoordinateSequenceFactory}, which preserves declarations
+   * when copying existing sequences but does not mark later array-based or
+   * sized allocations made by JTS operations.
+   * Existing constructors do not enable this behavior.
+   *
+   * @param defaultSrid the SRID of the geometry factory
+   * @return a reader which retains coordinate layout declarations
+   */
+  public static WKTReader forDeclaredDimensions(int defaultSrid) {
+    WKTReader reader = new WKTReader(new GeometryFactory(new PrecisionModel(), defaultSrid,
+        DeclaredCoordinateSequenceFactory.instance()));
+    reader.isDeclaringDimensions = true;
+    return reader;
   }
 
   /**
@@ -403,7 +442,31 @@ public class WKTReader
       fixStructure(coordinates, minSize, isRing);
     }
     Coordinate[] coordArray = coordinates.toArray(new Coordinate[0]);
-    return csFactory.create(coordArray);
+    return createCoordinateSequence(coordArray, ordinateFlags);
+  }
+
+  private CoordinateSequence createCoordinateSequence(Coordinate[] coordinates, EnumSet<Ordinate> ordinateFlags) {
+    if (isDeclaredLayout(ordinateFlags)) {
+      return new DeclaredCoordinateSequence(coordinates, toDimension(ordinateFlags),
+          ordinateFlags.contains(Ordinate.M) ? 1 : 0);
+    }
+    return csFactory.create(coordinates);
+  }
+
+  private boolean isDeclaredLayout(EnumSet<Ordinate> ordinateFlags) {
+    return isDeclaringDimensions
+        && (ordinateFlags.contains(Ordinate.Z) || ordinateFlags.contains(Ordinate.M));
+  }
+
+  private Point[] toDeclaredPoints(CoordinateSequence coordinates) {
+    Point[] points = new Point[coordinates.size()];
+    for (int i = 0; i < points.length; i++) {
+      CoordinateSequence point = new DeclaredCoordinateSequence(1, coordinates.getDimension(),
+          coordinates.getMeasures());
+      CoordinateSequences.copy(coordinates, i, point, 0, 1);
+      points[i] = geometryFactory.createPoint(point);
+    }
+    return points;
   }
 
   private static void fixStructure(List<Coordinate> coords, int minSize, boolean isRing) {
@@ -428,7 +491,11 @@ public class WKTReader
 
   private CoordinateSequence createCoordinateSequenceEmpty(EnumSet<Ordinate> ordinateFlags)
       throws IOException, ParseException {
-    return csFactory.create(0, toDimension(ordinateFlags), ordinateFlags.contains(Ordinate.M) ? 1 : 0);
+    int measures = ordinateFlags.contains(Ordinate.M) ? 1 : 0;
+    if (isDeclaredLayout(ordinateFlags)) {
+      return new DeclaredCoordinateSequence(0, toDimension(ordinateFlags), measures);
+    }
+    return csFactory.create(0, toDimension(ordinateFlags), measures);
   }
 
   /**
@@ -456,7 +523,8 @@ S  */
     } while (getNextCloserOrComma(tokenizer).equals(COMMA));
 
     Coordinate[] coordArray = coordinates.toArray(new Coordinate[0]);
-    return csFactory.create(coordArray);  }
+    return createCoordinateSequence(coordArray, ordinateFlags);
+  }
 
   /**
    * Computes the required dimension based on the given ordinate values.
@@ -887,8 +955,12 @@ S  */
     if (isAllowOldJtsMultipointSyntax) {
       String nextWord = lookAheadWord(tokenizer);
       if (nextWord != L_PAREN && nextWord != WKTConstants.EMPTY) {
-        return geometryFactory.createMultiPoint(
-            getCoordinateSequenceOldMultiPoint(tokenizer, ordinateFlags));
+        CoordinateSequence coordinates = getCoordinateSequenceOldMultiPoint(tokenizer, ordinateFlags);
+        if (coordinates instanceof DeclaredCoordinateSequence) {
+          // createMultiPoint(CoordinateSequence) would allocate undeclared point sequences
+          return geometryFactory.createMultiPoint(toDeclaredPoints(coordinates));
+        }
+        return geometryFactory.createMultiPoint(coordinates);
       }
     }
     

@@ -378,7 +378,7 @@ public class WKBReader
   {
     CoordinateSequence pts = readCoordinateSequence(1, ordinateFlags);
     // If X and Y are NaN create a empty point
-    if (Double.isNaN(pts.getX(0)) || Double.isNaN(pts.getY(0))) {
+    if (Double.isNaN(pts.getX(0)) && Double.isNaN(pts.getY(0))) {
       return factory.createPoint(createCoordinateSequenceEmpty(ordinateFlags));
     }
     return factory.createPoint(pts);

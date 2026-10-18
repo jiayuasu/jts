@@ -15,6 +15,7 @@ import org.locationtech.jts.geom.CoordinateSequenceComparator;
 import org.locationtech.jts.geom.Geometry;
 import org.locationtech.jts.geom.GeometryCollection;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.Point;
 import org.locationtech.jts.geom.Polygon;
 
 import junit.framework.TestCase;
@@ -49,6 +50,22 @@ public class WKBReaderTest  extends TestCase
     checkWKBGeometry("0000000003000000010000000140590000000000004069000000000000", "POLYGON ((100 200, 100 200, 100 200, 100 200))");
     // two point
     checkWKBGeometry("000000000300000001000000024059000000000000406900000000000040590000000000004069000000000000", "POLYGON ((100 200, 100 200, 100 200, 100 200))");
+  }
+
+  public void testPointIsEmptyOnlyWhenXAndYAreNaN() throws ParseException
+  {
+    WKBReader reader = new WKBReader();
+    // POINT (NaN NaN) is how WKB encodes POINT EMPTY
+    assertTrue(reader.read(WKBReader.hexToBytes("0101000000000000000000F87F000000000000F87F")).isEmpty());
+    // POINT (NaN 1) and POINT (1 NaN) are points with one NaN ordinate
+    Point nanX = (Point) reader.read(WKBReader.hexToBytes("0101000000000000000000F87F000000000000F03F"));
+    assertFalse(nanX.isEmpty());
+    assertTrue(Double.isNaN(nanX.getX()));
+    assertEquals(1.0, nanX.getY(), 0.0);
+    Point nanY = (Point) reader.read(WKBReader.hexToBytes("0101000000000000000000F03F000000000000F87F"));
+    assertFalse(nanY.isEmpty());
+    assertEquals(1.0, nanY.getX(), 0.0);
+    assertTrue(Double.isNaN(nanY.getY()));
   }
 
   public void testSinglePointLineString() throws ParseException
