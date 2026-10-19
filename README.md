@@ -13,12 +13,13 @@ artifact from transitive dependencies so both jars do not supply the same classe
 
 For applications that must retain stock JTS 1.20 geometry classes, the separate
 `org.datasyslab:jts-io-patch` artifact provides the fork's empty-geometry fixes as
-`org.datasyslab.jts.io.WKBReader` and `org.datasyslab.jts.io.WKTWriter`. It depends
+`org.datasyslab.jts.io.WKBReader`, `org.datasyslab.jts.io.WKTReader` and
+`org.datasyslab.jts.io.WKTWriter`. It depends
 on `org.locationtech.jts:jts-core:1.20.0`; geometry objects and stream interfaces
 continue to use `org.locationtech.jts.*` types.
 Callers must import the patched reader or writer explicitly.
 
-The unpublished `1.21.0-datasyslab-2` candidate also includes
+Since `1.21.0-datasyslab-2`, the artifact also includes
 `org.datasyslab.jts.geom.util.GeometryCopier.copy`, which copies stock JTS
 geometries into a requested factory while preserving nested empty members,
 polygon holes, and coordinate layouts. It drops user data, like the stock
@@ -46,6 +47,25 @@ array or size constructors and inspect the marker type, dimension and measures.
 The existing reader constructors keep their original behavior, including the
 constructor accepting a separate input sequence factory.
 
+Version `1.21.0-datasyslab-3` adds the same opt-in for WKT. Sequences of
+geometries tagged `Z`, `M` or `ZM` keep that layout, including empty sequences
+and all-NaN Z or M ordinates:
+
+```java
+import org.datasyslab.jts.io.WKTReader;
+
+Geometry geometry = WKTReader.forDeclaredDimensions().read("POINT Z (1 2 NaN)");
+// Alternatively: WKTReader.forDeclaredDimensions(4326) for a default SRID.
+```
+
+Untagged coordinates are read as by an ordinary reader, so a third ordinate in
+the old JTS syntax, such as `POINT (1 2 3)`, is still read as Z. The geometries
+use the same declaration-preserving factory as the WKB reader.
+
+Also since version 3, `WKBReader` reads a point as empty only when its X and Y
+are both NaN, which is how WKB encodes `POINT EMPTY`; `POINT (NaN 1)` keeps its
+ordinates. This applies to every reader constructor.
+
 This metadata applies to coordinate sequences. A collection with no members
 has no sequence, so its own WKB header's layout cannot be retained. Arbitrary
 JTS operations that allocate new sequences are also not guaranteed to preserve
@@ -53,7 +73,7 @@ a source declaration. Use `GeometryCopier.copy` with the declaration-preserving
 sequence factory when a structure-preserving copy is needed. Stock WKB and WKT
 writers do not interpret the declaration marker.
 
-The version-2 candidate also exports `org.datasyslab.jts.io.WKBWriter`.
+Since version 2, the artifact also exports `org.datasyslab.jts.io.WKBWriter`.
 To preserve declared dimensions on output, enable its explicit option:
 
 ```java
