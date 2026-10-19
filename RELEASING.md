@@ -56,10 +56,10 @@ submitted to Central as a complete release.
 
 ## Build the isolated IO patch
 
-`org.datasyslab:jts-io-patch:1.21.0-datasyslab-2` is an independently built
+`org.datasyslab:jts-io-patch:1.21.0-datasyslab-3` is an independently built
 artifact for applications that keep `org.locationtech.jts:jts-core:1.20.0` at
 runtime. During `generate-sources`, it selects `WKBReader`, `WKBWriter`,
-`WKTWriter`, and package-private `CheckOrdinatesFilter` from the maintained core
+`WKTReader`, `WKTWriter`, and package-private `CheckOrdinatesFilter` from the maintained core
 sources and generates them under `org.datasyslab.jts.io`. It also generates
 `GeometryCopier` under `org.datasyslab.jts.geom.util`, and
 `DeclaredCoordinateSequence` and `DeclaredCoordinateSequenceFactory` under
@@ -70,7 +70,7 @@ license and attribution for the coordinate sequence helpers adapted from Sedona.
 
 The isolated IO patch has its own version history. Version
 `1.21.0-datasyslab-1` introduced the three isolated IO classes. Version
-`1.21.0-datasyslab-2` is an unpublished candidate. It adds independent input
+`1.21.0-datasyslab-2` adds independent input
 coordinate sequence allocation to `WKBReader` while retaining the caller's
 geometry factory on parsed objects. It also adds `GeometryCopier.copy` for
 copies that preserve nested empty members, polygon holes, and coordinate layouts
@@ -79,6 +79,10 @@ while using the requested geometry factory and its coordinate sequence factory.
 `WKBWriter.setPreserveCoordinateDimensions(true)` opt into layout preservation
 without changing existing reader or writer defaults. Empty collections with no
 members still cannot retain a layout declaration because they have no sequence.
+Version `1.21.0-datasyslab-3` adds `WKTReader.forDeclaredDimensions()`, which marks
+geometries tagged Z, M or ZM with that layout, including empty sequences and
+all-NaN Z or M values, and reads untagged coordinates as before. It also makes
+`WKBReader` read a point as empty only when both X and Y are NaN.
 
 The structure-preserving copy change is maintained in this fork and tracked in
 [jiayuasu/jts#10](https://github.com/jiayuasu/jts/pull/10). Upstream submission is
@@ -164,8 +168,8 @@ Central versions are immutable: use a new suffix for any subsequent correction.
 
 The isolated IO patch has a separate publication scope. Its parent POMs remain
 at the immutable `1.21.0-datasyslab-1` version while the child module explicitly
-uses `1.21.0-datasyslab-2`, so do not deploy the reactor or use `-am`. Create the
-distinct annotated tag `jts-io-patch-1.21.0-datasyslab-2` from the reviewed IO
+uses `1.21.0-datasyslab-3`, so do not deploy the reactor or use `-am`. Create the
+distinct annotated tag `jts-io-patch-1.21.0-datasyslab-3` from the reviewed IO
 patch commit; do not move or replace the existing full-core tag. After local
 verification and explicit release approval, deploy only the module from that tag:
 

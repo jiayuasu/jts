@@ -1,60 +1,69 @@
 # Datasyslab JTS fork
 
-This branch builds JTS under `org.datasyslab:jts-core`. It retains the
-`org.locationtech.jts.*` Java packages and the upstream licenses.
-
-The first fork version is `1.21.0-datasyslab-1`, based on upstream commit
-[`7e2b0e5d`](https://github.com/locationtech/jts/commit/7e2b0e5d53fa411d6b58b8e5b395b1361f9711f8).
-This is a fork of upstream development code, not an official JTS 1.21.0 release.
+This branch builds JTS under `org.datasyslab:jts-core`. It is a fork of upstream
+development code based on
+[`7e2b0e5d`](https://github.com/locationtech/jts/commit/7e2b0e5d53fa411d6b58b8e5b395b1361f9711f8),
+not an official JTS 1.21.0 release, and it keeps the `org.locationtech.jts.*`
+Java packages and the upstream licenses. Use it in place of
+`org.locationtech.jts:jts-core`, and exclude the upstream artifact from
+transitive dependencies so both jars do not supply the same classes.
 See [RELEASING.md](RELEASING.md) for build and publishing instructions.
 
-Use the fork in place of `org.locationtech.jts:jts-core`. Exclude the upstream
-artifact from transitive dependencies so both jars do not supply the same classes.
+## jts-io-patch
 
-For applications that must retain stock JTS 1.20 geometry classes, the separate
-`org.datasyslab:jts-io-patch` artifact provides the fork's empty-geometry fixes as
-`org.datasyslab.jts.io.WKBReader` and `org.datasyslab.jts.io.WKTWriter`. It depends
-on `org.locationtech.jts:jts-core:1.20.0`; geometry objects and stream interfaces
-continue to use `org.locationtech.jts.*` types.
-Callers must import the patched reader or writer explicitly.
+`org.datasyslab:jts-io-patch` is for applications that keep stock
+`org.locationtech.jts:jts-core:1.20.0`. It provides the classes below under
+`org.datasyslab`; geometry objects and stream interfaces stay
+`org.locationtech.jts.*` types. Import the patched classes explicitly.
 
-The unpublished `1.21.0-datasyslab-2` candidate also includes
-`org.datasyslab.jts.geom.util.GeometryCopier.copy`, which copies stock JTS
-geometries into a requested factory while preserving nested empty members,
-polygon holes, and coordinate layouts. It drops user data, like the stock
-geometry factory's copy operation.
+| Class | Purpose |
+| --- | --- |
+| `org.datasyslab.jts.io.WKBReader` | Reader with the fork's empty-geometry fixes that can keep declared coordinate layouts |
+| `org.datasyslab.jts.io.WKTReader` | Reader that can keep declared coordinate layouts |
+| `org.datasyslab.jts.io.WKBWriter` | Writer that can write declared coordinate layouts |
+| `org.datasyslab.jts.io.WKTWriter` | Writer with the fork's empty-geometry fixes |
+| `org.datasyslab.jts.geom.util.GeometryCopier` | Structure-preserving copies into a requested factory |
+| `org.datasyslab.jts.geom.impl.DeclaredCoordinateSequence`, `DeclaredCoordinateSequenceFactory` | Sequences that record a declared XY, XYZ, XYM or XYZM layout |
 
-To retain declared XY, XYZ, XYM and XYZM layouts through copies, opt in when
-reading WKB:
+### Reading declared coordinate layouts
+
+Stock JTS reads `POINT (1 2)` and `POINT Z (1 2 NaN)` into the same coordinate
+sequences, so a Z or M dimension whose values are all NaN, or the dimension of
+an empty geometry, is lost. The opt-in readers keep it:
 
 ```java
 import org.datasyslab.jts.io.WKBReader;
+import org.datasyslab.jts.io.WKTReader;
 import org.locationtech.jts.geom.Geometry;
 
-Geometry geometry = WKBReader.forDeclaredDimensions().read(wkbBytes);
-// Alternatively: WKBReader.forDeclaredDimensions(4326) for a default SRID.
+Geometry fromWkb = WKBReader.forDeclaredDimensions().read(wkbBytes);
+Geometry fromWkt = WKTReader.forDeclaredDimensions().read("POINT Z (1 2 NaN)");
+// forDeclaredDimensions(4326) sets a default SRID.
 ```
 
-The reader creates `org.datasyslab.jts.geom.impl.DeclaredCoordinateSequence`
-instances even for empty sequences and all-NaN Z or M ordinates. Its ordinary
-JTS geometry factory uses `DeclaredCoordinateSequenceFactory.instance()` to
-retain the declaration when copying sequences. Later array-based and sized
-allocations remain ordinary sequences, so operations producing XY coordinates
-do not gain a declared Z merely because JTS pads them with NaN.
-Other binary codecs can construct declared sequences directly using their
-array or size constructors and inspect the marker type, dimension and measures.
-The existing reader constructors keep their original behavior, including the
-constructor accepting a separate input sequence factory.
+- The WKB reader creates a `DeclaredCoordinateSequence` with the layout in each
+  header, including empty sequences and all-NaN Z or M ordinates.
+- The WKT reader does the same for geometries tagged `Z`, `M` or `ZM`. Untagged
+  coordinates are read as by an ordinary reader, so the old JTS syntax
+  `POINT (1 2 3)` still reads the third ordinate as Z.
+- The geometries use `DeclaredCoordinateSequenceFactory.instance()`, which keeps
+  the declaration when copying sequences. Sequences that JTS operations allocate
+  later are ordinary, so an XY result does not gain a declared Z because JTS
+  pads it with NaN. Use `GeometryCopier.copy` with this factory when a
+  structure-preserving copy is needed.
+- A collection with no members has no sequence, so its own layout cannot be kept.
+- Other codecs can create declared sequences with their array or size
+  constructors and inspect the marker type, dimension and measures.
+- The existing reader constructors keep their behavior, including the one that
+  accepts a separate input sequence factory.
 
-This metadata applies to coordinate sequences. A collection with no members
-has no sequence, so its own WKB header's layout cannot be retained. Arbitrary
-JTS operations that allocate new sequences are also not guaranteed to preserve
-a source declaration. Use `GeometryCopier.copy` with the declaration-preserving
-sequence factory when a structure-preserving copy is needed. Stock WKB and WKT
-writers do not interpret the declaration marker.
+`WKBReader` reads a point as empty only when its X and Y are both NaN, which is
+how WKB encodes `POINT EMPTY`; `POINT (NaN 1)` keeps its ordinates.
 
-The version-2 candidate also exports `org.datasyslab.jts.io.WKBWriter`.
-To preserve declared dimensions on output, enable its explicit option:
+### Writing declared coordinate layouts
+
+Stock WKB and WKT writers ignore the declaration. The patched `WKBWriter` writes
+it when asked:
 
 ```java
 import org.datasyslab.jts.io.WKBWriter;
@@ -65,16 +74,22 @@ writer.setPreserveCoordinateDimensions(true);
 byte[] output = writer.write(geometry);
 ```
 
-The configured ordinates remain an upper bound. A 2D writer still omits Z and M;
-a 3D writer can select M with `setOutputOrdinates(Ordinate.createXYM())`.
-Empty and all-NaN declared sequences retain their layouts, while ordinary XY
-coordinates with a padded NaN Z remain XY. Unmarked measured sequences also
-have an unambiguous layout. MultiPoint, MultiLineString and MultiPolygon use
-one shared layout for every member, padding missing ordinates with NaN.
-GeometryCollection members keep their individual layouts; consumers such as
-PostGIS may reject a GeometryCollection containing mixed layouts. A collection
-with no members is written as XY because it has no declaration.
-The option defaults to false and does not change SRID handling or WKT output.
+- The configured ordinates remain an upper bound: a 2D writer still omits Z and
+  M, and a 3D writer can select M with `setOutputOrdinates(Ordinate.createXYM())`.
+- Empty and all-NaN declared sequences keep their layouts, while ordinary XY
+  coordinates with a padded NaN Z stay XY. Unmarked measured sequences also have
+  an unambiguous layout.
+- MultiPoint, MultiLineString and MultiPolygon use one layout for every member,
+  padding missing ordinates with NaN. GeometryCollection members keep their own
+  layouts; consumers such as PostGIS may reject a GeometryCollection with mixed
+  layouts. A collection with no members is written as XY.
+- The option is off by default and does not change SRID handling or WKT output.
+
+### Copying geometries
+
+`GeometryCopier.copy` copies stock JTS geometries into a requested factory,
+keeping nested empty members, polygon holes and coordinate layouts. Like the
+stock geometry factory's copy, it drops user data.
 
 The upstream project documentation follows.
 

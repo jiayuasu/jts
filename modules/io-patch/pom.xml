@@ -9,7 +9,7 @@
         <version>1.21.0-datasyslab-1</version>
     </parent>
     <artifactId>jts-io-patch</artifactId>
-    <version>1.21.0-datasyslab-2</version>
+    <version>1.21.0-datasyslab-3</version>
     <name>${project.groupId}:${project.artifactId}</name>
 
     <licenses>
