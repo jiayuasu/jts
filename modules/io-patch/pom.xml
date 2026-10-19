@@ -61,6 +61,7 @@
                                         <include name="WKBReader.java"/>
                                         <include name="WKBWriter.java"/>
                                         <include name="WKTWriter.java"/>
+                                        <include name="WKTReader.java"/>
                                         <include name="CheckOrdinatesFilter.java"/>
                                     </fileset>
                                 </copy>

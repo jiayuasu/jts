@@ -269,4 +269,30 @@ public class IsolatedIoTest extends TestCase {
       super(size, dimension, measures);
     }
   }
+
+  public void testDeclaredWktReaderUsesIsolatedSequencesWithStockGeometryTypes() throws ParseException {
+    org.datasyslab.jts.io.WKTReader reader = org.datasyslab.jts.io.WKTReader.forDeclaredDimensions(4326);
+    Geometry tagged = reader.read("LINESTRING Z (0 0 NaN, 1 1 NaN)");
+    assertTrue(tagged instanceof LineString);
+    assertEquals(4326, tagged.getSRID());
+    CoordinateSequence sequence = ((LineString) tagged).getCoordinateSequence();
+    assertTrue(sequence instanceof DeclaredCoordinateSequence);
+    assertEquals(3, sequence.getDimension());
+    assertSame(DeclaredCoordinateSequenceFactory.instance(), tagged.getFactory().getCoordinateSequenceFactory());
+
+    Point empty = (Point) reader.read("POINT ZM EMPTY");
+    assertTrue(empty.getCoordinateSequence() instanceof DeclaredCoordinateSequence);
+    assertEquals(4, empty.getCoordinateSequence().getDimension());
+    assertEquals(1, empty.getCoordinateSequence().getMeasures());
+
+    Point untagged = (Point) reader.read("POINT (1 2 3)");
+    assertFalse(untagged.getCoordinateSequence() instanceof DeclaredCoordinateSequence);
+    assertEquals(3.0, untagged.getCoordinate().getZ(), 0.0);
+  }
+
+  public void testIsolatedWkbReaderKeepsPointsWithOneNanOrdinate() throws ParseException {
+    org.datasyslab.jts.io.WKBReader reader = org.datasyslab.jts.io.WKBReader.forDeclaredDimensions();
+    assertFalse(reader.read(org.datasyslab.jts.io.WKBReader.hexToBytes("0101000000000000000000F87F000000000000F03F")).isEmpty());
+    assertTrue(reader.read(org.datasyslab.jts.io.WKBReader.hexToBytes("0101000000000000000000F87F000000000000F87F")).isEmpty());
+  }
 }
