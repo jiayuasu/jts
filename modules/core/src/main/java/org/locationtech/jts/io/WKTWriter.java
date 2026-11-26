@@ -39,9 +39,12 @@ import org.locationtech.jts.util.Assert;
  * See {@link WKTReader} for a formal specification of the format syntax.
  * <p>
  * The <code>WKTWriter</code> outputs coordinates rounded to the precision
- * model. Only the maximum number of decimal places 
+ * model. Only the maximum number of decimal places
  * necessary to represent the ordinates to the required precision will be
- * output.
+ * output. Under the default floating precision model there is no limit:
+ * every ordinate is written with the digits needed to read the same
+ * <code>double</code> back, so the text round-trips through
+ * {@link WKTReader}. Scientific notation is never used.
  * <p>
  * The SFS WKT spec does not define a special tag for {@link LinearRing}s.
  * Under the spec, rings are output as <code>LINESTRING</code>s.
@@ -149,6 +152,14 @@ public class WKTWriter
   /**
    *  Creates the <code>DecimalFormat</code> used to write <code>double</code>s
    *  with a sufficient number of decimal places.
+   *  <p>
+   *  A floating precision model gets {@link OrdinateFormat#DEFAULT}, which
+   *  writes every digit needed to read the same <code>double</code> back.
+   *  The model's maximum significant digits (16) would otherwise be applied
+   *  as a decimal-place limit, which drops digits from ordinates below 1
+   *  and writes ordinates below 5E-17 as 0.
+   *  Fixed and single-precision models keep writing at most the number of
+   *  decimal places they resolve.
    *
    *@param  precisionModel  the <code>PrecisionModel</code> used to determine
    *      the number of decimal places to write.
@@ -156,6 +167,9 @@ public class WKTWriter
    *      s without scientific notation.
    */
   private static OrdinateFormat createFormatter(PrecisionModel precisionModel) {
+    if (precisionModel.getType() == PrecisionModel.FLOATING) {
+      return OrdinateFormat.DEFAULT;
+    }
     return OrdinateFormat.create(precisionModel.getMaximumSignificantDigits());
   }
 
@@ -313,7 +327,7 @@ public class WKTWriter
    */
   public void setPrecisionModel(PrecisionModel precisionModel) {
     this.precisionModel = precisionModel;
-    this.ordinateFormat = OrdinateFormat.create(precisionModel.getMaximumSignificantDigits());
+    this.ordinateFormat = precisionModel == null ? null : createFormatter(precisionModel);
   }
 
   /**
