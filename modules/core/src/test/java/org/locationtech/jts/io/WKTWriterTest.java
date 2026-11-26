@@ -161,6 +161,32 @@ public class WKTWriterTest extends TestCase {
     assertEquals("POINT (123456789012345690000000000000000 10000000000)", point1.toText());
   }
 
+  public void testWriteFloatingPrecisionRoundTrips() throws ParseException {
+    GeometryFactory geometryFactory = new GeometryFactory();
+    WKTReader reader = new WKTReader(geometryFactory);
+    double[] ordinates = {1e-17, 0.1 + 0.2, 0.39452545497198344, 1e-300, 1e20, 8.41e21, 123456789.12345679};
+    for (double ordinate : ordinates) {
+      Point point = geometryFactory.createPoint(new Coordinate(ordinate, -ordinate));
+      String wkt = writer.write(point);
+      assertFalse(wkt, wkt.contains("E"));
+      assertTrue(wkt, point.equalsExact(reader.read(wkt)));
+    }
+    Point point = geometryFactory.createPoint(new Coordinate(1e-17, 0.1 + 0.2));
+    assertEquals("POINT (0.00000000000000001 0.30000000000000004)", writer.write(point));
+    assertEquals("POINT (1 2)", writer.write(geometryFactory.createPoint(new Coordinate(1, 2))));
+  }
+
+  public void testWriteFloatingPrecisionModelSetExplicitly() {
+    GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(1E9), 0);
+    Point point = geometryFactory.createPoint(new Coordinate(1e-17, 0.1 + 0.2));
+    assertEquals("POINT (0 0.3)", point.toText());
+    WKTWriter floatingWriter = new WKTWriter();
+    floatingWriter.setPrecisionModel(new PrecisionModel());
+    assertEquals("POINT (0.00000000000000001 0.30000000000000004)", floatingWriter.write(point));
+    floatingWriter.setPrecisionModel(null);
+    assertEquals("POINT (0 0.3)", floatingWriter.write(point));
+  }
+
   public void testWrite3D() {
     GeometryFactory geometryFactory = new GeometryFactory();
     Point point = geometryFactory.createPoint(new Coordinate(1, 1, 1));

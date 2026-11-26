@@ -75,6 +75,14 @@ public class IsolatedIoTest extends TestCase {
     new WKTReader().read(text);
   }
 
+  public void testIsolatedWriterRoundTripsFloatingPrecisionOrdinates() throws ParseException {
+    Point point = new GeometryFactory().createPoint(new Coordinate(1e-17, 0.1 + 0.2));
+    String wkt = new WKTWriter(4).write(point);
+    assertEquals("POINT (0.00000000000000001 0.30000000000000004)", wkt);
+    assertTrue(point.equalsExact(new WKTReader().read(wkt)));
+    assertEquals("POINT (0 0.3)", new org.locationtech.jts.io.WKTWriter(4).write(point));
+  }
+
   public void testPublicApiUsesStockJtsTypesAndWriter() throws Exception {
     assertSame(Geometry.class, WKBReader.class.getMethod("read", byte[].class).getReturnType());
     assertSame(org.locationtech.jts.io.InStream.class,
